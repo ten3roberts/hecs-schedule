@@ -2,6 +2,7 @@
 mod macros;
 mod access;
 mod commandbuffer;
+pub mod context;
 mod error;
 mod subworld;
 pub mod system;
@@ -9,16 +10,8 @@ mod traits;
 
 pub use access::*;
 pub use commandbuffer::*;
+pub use context::Context;
 pub use error::*;
 pub use subworld::*;
 pub use system::*;
 pub use traits::*;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}

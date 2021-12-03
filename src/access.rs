@@ -4,15 +4,15 @@ use smallvec::{smallvec, SmallVec};
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
-    pub(crate) ty: TypeInfo,
+    pub(crate) info: TypeInfo,
     pub(crate) exclusive: bool,
 }
 
 impl Access {
     /// Get a reference to the access's id.
     #[inline]
-    pub fn ty(&self) -> TypeInfo {
-        self.ty
+    pub fn info(&self) -> TypeInfo {
+        self.info
     }
 
     /// Get a reference to the access's exclusive.
@@ -30,7 +30,7 @@ pub trait IntoAccess {
 impl<T: 'static> IntoAccess for &T {
     fn access() -> Access {
         Access {
-            ty: TypeInfo::of::<T>(),
+            info: TypeInfo::of::<T>(),
             exclusive: false,
         }
     }
@@ -39,14 +39,14 @@ impl<T: 'static> IntoAccess for &T {
         let l = Self::access();
         let r = U::access();
 
-        l.ty == r.ty && !r.exclusive
+        l.info == r.info && !r.exclusive
     }
 }
 
 impl<T: 'static> IntoAccess for &mut T {
     fn access() -> Access {
         Access {
-            ty: TypeInfo::of::<T>(),
+            info: TypeInfo::of::<T>(),
             exclusive: true,
         }
     }
@@ -55,7 +55,7 @@ impl<T: 'static> IntoAccess for &mut T {
         let l = Self::access();
         let r = U::access();
 
-        l.ty == r.ty
+        l.info == r.info
     }
 }
 

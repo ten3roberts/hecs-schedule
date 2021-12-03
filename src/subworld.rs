@@ -79,7 +79,7 @@ impl<'w, T: ComponentAccess> SubWorld<'w, T> {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::accesses(),
                 query: smallvec![Access {
-                    ty: TypeInfo::of::<C>(),
+                    info: TypeInfo::of::<C>(),
                     exclusive: false,
                 }],
             });
