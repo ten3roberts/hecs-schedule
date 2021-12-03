@@ -1,7 +1,8 @@
 use crate::impl_for_tuples;
 use hecs::TypeInfo;
+use smallvec::{smallvec, SmallVec};
 
-#[derive(PartialOrd, Ord, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
     ty: TypeInfo,
     exclusive: bool,
@@ -58,7 +59,11 @@ impl<T: 'static> IntoAccess for &mut T {
     }
 }
 
+/// Trait for a set of component accesses
 pub trait ComponentAccess {
+    /// Returns a list of all component accesses
+    fn accesses() -> SmallVec<[Access; 8]>;
+    /// Returns true if U exists in Self
     fn has<U: IntoAccess>() -> bool;
 }
 
@@ -73,6 +78,9 @@ impl<A: IntoAccess> Subset for A {
 }
 
 impl<A: IntoAccess> ComponentAccess for A {
+    fn accesses() -> SmallVec<[Access; 8]> {
+        smallvec![A::access()]
+    }
     fn has<U: IntoAccess>() -> bool {
         A::compatible::<U>()
     }
@@ -82,6 +90,10 @@ impl<A: IntoAccess> ComponentAccess for A {
 macro_rules! tuple_impl {
     ($($name: ident), *) => {
         impl<$($name: IntoAccess,)*> ComponentAccess for ($($name,) *) {
+            fn accesses() -> SmallVec<[Access; 8]> {
+                smallvec![$($name::access()), *]
+            }
+
             fn has<U: IntoAccess>() -> bool {
                 $(($name::compatible::<U>())) || *
             }

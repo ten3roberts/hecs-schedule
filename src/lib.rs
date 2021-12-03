@@ -1,11 +1,13 @@
-mod access;
 #[macro_use]
 mod macros;
+mod access;
+mod error;
 mod subworld;
 pub mod system;
 mod traits;
 
 pub use access::*;
+pub use error::*;
 pub use subworld::*;
 pub use system::*;
 pub use traits::*;

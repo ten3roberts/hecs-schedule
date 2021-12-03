@@ -1,17 +1,17 @@
 use std::marker::PhantomData;
 
-use crate::{access::*, View};
-use hecs::World;
+use crate::{access::*, Error, Result, View};
+use hecs::{Query, QueryBorrow, World};
 
 pub struct SubWorld<'a, T> {
     world: &'a World,
     marker: PhantomData<T>,
 }
 
-impl<'a, T: ComponentAccess> SubWorld<'a, T> {
+impl<'w, T: ComponentAccess> SubWorld<'w, T> {
     /// Splits the world into a subworld. No borrow checking is performed so may
     /// fail during query unless guarded otherwise.
-    pub fn new(world: &'a World) -> Self {
+    pub fn new(world: &'w World) -> Self {
         Self {
             world,
             marker: PhantomData,
@@ -26,6 +26,30 @@ impl<'a, T: ComponentAccess> SubWorld<'a, T> {
     /// Returns true if the world satisfies the whole query
     pub fn has_all<U: Subset>(&self) -> bool {
         U::is_subset::<T>()
+    }
+
+    /// Query the subworld.
+    /// # Panics
+    /// Panics if the query items are not a compatible subset of the subworld.
+    pub fn query<Q: Query + Subset>(&self) -> QueryBorrow<'w, Q> {
+        if !self.has_all::<Q>() {
+            panic!("Attempt to execute query on incompatible subworld")
+        }
+
+        self.world.query()
+    }
+
+    /// Query the subworld.
+    /// Fails if the query items are not compatible with the subworld
+    pub fn try_query<Q: Query + Subset + ComponentAccess>(&self) -> Result<QueryBorrow<'w, Q>> {
+        if !self.has_all::<Q>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: T::accesses(),
+                query: Q::accesses(),
+            });
+        } else {
+            Ok(self.world.query())
+        }
     }
 }
 

@@ -11,3 +11,4 @@ license = "MIT"
 [dependencies]
 hecs = "0.7"
 smallvec = "1.7.0"
+thiserror = "1.0.30"
