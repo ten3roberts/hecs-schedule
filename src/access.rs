@@ -1,7 +1,8 @@
+use crate::impl_for_tuples;
 use hecs::{Component, TypeInfo};
 use smallvec::{smallvec, SmallVec};
 
-pub type ComponentAccess = SmallVec<[Access; 4]>;
+pub type ComponentAccess = SmallVec<[Access; 8]>;
 
 #[derive(PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
@@ -25,6 +26,7 @@ impl Access {
 
 pub trait IntoAccess {
     fn access() -> Access;
+    fn compatible<U: IntoAccess>() -> bool;
 }
 
 impl<T: Component> IntoAccess for &T {
@@ -33,6 +35,13 @@ impl<T: Component> IntoAccess for &T {
             ty: TypeInfo::of::<T>(),
             exclusive: false,
         }
+    }
+
+    fn compatible<U: IntoAccess>() -> bool {
+        let l = Self::access();
+        let r = U::access();
+
+        l.ty == r.ty && !r.exclusive
     }
 }
 
@@ -43,20 +52,54 @@ impl<T: Component> IntoAccess for &mut T {
             exclusive: true,
         }
     }
+
+    fn compatible<U: IntoAccess>() -> bool {
+        let l = Self::access();
+        let r = U::access();
+
+        l.ty == r.ty
+    }
 }
 
 pub trait IntoComponentAccess {
     fn component_access() -> ComponentAccess;
+    fn has<U: IntoAccess>() -> bool;
 }
 
 impl<A: IntoAccess> IntoComponentAccess for A {
     fn component_access() -> ComponentAccess {
         smallvec![A::access()]
     }
-}
 
-impl<A: IntoAccess> IntoComponentAccess for (A,) {
-    fn component_access() -> ComponentAccess {
-        smallvec![A::access()]
+    fn has<U: IntoAccess>() -> bool {
+        A::compatible::<U>()
     }
 }
+
+// impl<A: IntoAccess> IntoComponentAccess for (A,) {
+//     fn component_access() -> ComponentAccess {
+//         smallvec![A::access()]
+//     }
+
+//     fn has<U: IntoAccess>() -> bool {
+//         A::compatible::<U>()
+//     }
+// }
+
+/// Implement for tuples
+macro_rules! tuple_impl {
+    ($($name: ident), *) => {
+        impl<$($name: IntoAccess,)*> IntoComponentAccess for ($($name,) *) {
+            fn component_access() -> ComponentAccess {
+                smallvec![$($name::access()), *]
+            }
+
+            fn has<U: IntoAccess>() -> bool {
+                $(($name::compatible::<U>())) || *
+            }
+        }
+    };
+
+}
+
+impl_for_tuples!(tuple_impl);
