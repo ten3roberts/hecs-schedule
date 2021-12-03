@@ -1,8 +1,5 @@
 use crate::impl_for_tuples;
-use hecs::{Component, TypeInfo};
-use smallvec::{smallvec, SmallVec};
-
-pub type ComponentAccess = SmallVec<[Access; 8]>;
+use hecs::TypeInfo;
 
 #[derive(PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
@@ -29,7 +26,7 @@ pub trait IntoAccess {
     fn compatible<U: IntoAccess>() -> bool;
 }
 
-impl<T: Component> IntoAccess for &T {
+impl<T: 'static> IntoAccess for &T {
     fn access() -> Access {
         Access {
             ty: TypeInfo::of::<T>(),
@@ -45,7 +42,7 @@ impl<T: Component> IntoAccess for &T {
     }
 }
 
-impl<T: Component> IntoAccess for &mut T {
+impl<T: 'static> IntoAccess for &mut T {
     fn access() -> Access {
         Access {
             ty: TypeInfo::of::<T>(),
@@ -61,43 +58,41 @@ impl<T: Component> IntoAccess for &mut T {
     }
 }
 
-pub trait IntoComponentAccess {
-    fn component_access() -> ComponentAccess;
+pub trait ComponentAccess {
     fn has<U: IntoAccess>() -> bool;
 }
 
-impl<A: IntoAccess> IntoComponentAccess for A {
-    fn component_access() -> ComponentAccess {
-        smallvec![A::access()]
-    }
+pub trait Subset {
+    fn is_subset<U: ComponentAccess>() -> bool;
+}
 
+impl<A: IntoAccess> Subset for A {
+    fn is_subset<U: ComponentAccess>() -> bool {
+        U::has::<A>()
+    }
+}
+
+impl<A: IntoAccess> ComponentAccess for A {
     fn has<U: IntoAccess>() -> bool {
         A::compatible::<U>()
     }
 }
 
-// impl<A: IntoAccess> IntoComponentAccess for (A,) {
-//     fn component_access() -> ComponentAccess {
-//         smallvec![A::access()]
-//     }
-
-//     fn has<U: IntoAccess>() -> bool {
-//         A::compatible::<U>()
-//     }
-// }
-
 /// Implement for tuples
 macro_rules! tuple_impl {
     ($($name: ident), *) => {
-        impl<$($name: IntoAccess,)*> IntoComponentAccess for ($($name,) *) {
-            fn component_access() -> ComponentAccess {
-                smallvec![$($name::access()), *]
-            }
-
+        impl<$($name: IntoAccess,)*> ComponentAccess for ($($name,) *) {
             fn has<U: IntoAccess>() -> bool {
                 $(($name::compatible::<U>())) || *
             }
         }
+
+        impl<$($name: IntoAccess,)*> Subset for ($($name,) *) {
+            fn is_subset<U: ComponentAccess>() -> bool {
+                $((U::has::<$name>())) && *
+            }
+        }
+
     };
 
 }

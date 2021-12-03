@@ -10,4 +10,9 @@ fn subworld() {
     assert!(!subworld.has::<&mut i32>());
     assert!(subworld.has::<&f32>());
     assert!(subworld.has::<&mut f32>());
+
+    assert!(subworld.has_all::<(&i32, &f32)>());
+    assert!(!subworld.has_all::<(&mut i32, &f32)>());
+    assert!(subworld.has_all::<(&mut f32, &i32)>());
+    assert!(!subworld.has_all::<(&mut f32, &i32, &u32)>());
 }
