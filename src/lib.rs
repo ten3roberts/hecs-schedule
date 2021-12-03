@@ -10,7 +10,7 @@ mod traits;
 
 pub use access::*;
 pub use commandbuffer::*;
-pub use context::Context;
+pub use context::*;
 pub use error::*;
 pub use subworld::*;
 pub use system::*;

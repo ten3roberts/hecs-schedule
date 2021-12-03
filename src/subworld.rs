@@ -94,9 +94,9 @@ impl<'a, T> View<'a> for SubWorld<'a, T>
 where
     T: ComponentAccess,
 {
-    type Superset = World;
+    type Superset = &'a World;
 
-    fn split(world: &'a Self::Superset) -> Self {
+    fn split(world: Self::Superset) -> Self {
         Self::new(world)
     }
 }

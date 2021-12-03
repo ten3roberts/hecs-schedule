@@ -160,7 +160,6 @@ macro_rules! tuple_impl {
                 $((U::has::<$name>())) && *
             }
         }
-
     };
 
 }

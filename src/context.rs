@@ -12,7 +12,7 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     /// Construct a new context from the tuple of references `data`
-    pub fn new(data: &'a dyn Data) -> Context {
+    pub(crate) fn new(data: &'a dyn Data) -> Context {
         Self { data }
     }
 
@@ -29,7 +29,7 @@ impl<'a> Context<'a> {
     }
 }
 
-pub trait Data {
+pub(crate) trait Data {
     unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
@@ -43,9 +43,21 @@ impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
     }
 }
 
-trait IntoData {
+pub(crate) trait IntoData {
     type Target: Data;
     unsafe fn into_data(self) -> Self::Target;
+}
+
+/// Implement for a unary nontuple
+impl<T: 'static> IntoData for &mut T {
+    type Target = ((AtomicRefCell<NonNull<u8>>, PhantomData<T>),);
+
+    unsafe fn into_data(self) -> Self::Target {
+        ((
+            AtomicRefCell::new(NonNull::new_unchecked(self as *mut _ as *mut u8)),
+            PhantomData,
+        ),)
+    }
 }
 
 macro_rules! tuple_impls {

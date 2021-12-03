@@ -1,11 +1,11 @@
 use smallvec::SmallVec;
 use thiserror::*;
 
-use crate::Access;
+use crate::{Access, SystemName};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("Attempt to execute query: {query:?} on incompatible subworld: {subworld:?}")]
     IncompatibleSubworld {
@@ -26,4 +26,7 @@ pub enum Error {
 
     #[error("Data of type {0:?} is already borrowd")]
     BorrowMut(&'static str),
+
+    #[error("Failed to execute system {0:?}")]
+    SystemError(SystemName, #[source] anyhow::Error),
 }
