@@ -51,3 +51,24 @@ fn fail_query() {
     let val = subworld.get::<u64>(entity).unwrap();
     assert_eq!(*val, 42);
 }
+
+#[test]
+fn commandbuffer() {
+    let mut world = World::default();
+    let e = world.reserve_entity();
+
+    let mut cmds = CommandBuffer::default();
+
+    cmds.spawn((42_i32, 7.0_f32));
+    cmds.insert(e, (89_usize, 42_i32, String::from("Foo")));
+
+    cmds.remove_one::<usize>(e);
+
+    cmds.execute(&mut world);
+
+    assert!(world
+        .query::<(&i32, &f32)>()
+        .iter()
+        .map(|(_, val)| val)
+        .eq([(&42, &7.0)]))
+}
