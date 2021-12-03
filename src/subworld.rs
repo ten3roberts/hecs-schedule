@@ -1,5 +1,5 @@
 use smallvec::smallvec;
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
 use crate::{access::*, Error, Result, View};
 use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, TypeInfo, World};
@@ -81,6 +81,7 @@ impl<'w, T: ComponentAccess> SubWorld<'w, T> {
                 query: smallvec![Access {
                     info: TypeInfo::of::<C>(),
                     exclusive: false,
+                    name: type_name::<C>(),
                 }],
             });
         }

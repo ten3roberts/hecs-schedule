@@ -1,15 +1,11 @@
-use std::{
-    any::{type_name, TypeId},
-    marker::PhantomData,
-    ptr::NonNull,
-};
+use std::{any::TypeId, marker::PhantomData, ptr::NonNull};
 
-use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
-use hecs::TypeInfo;
+use atomic_refcell::AtomicRefCell;
 
-use crate::{Error, Result};
+use crate::{CellBorrow, Error, IntoAccess, Result};
 
-/// Holds all data necessary for the execution of the world
+/// Holds all data necessary for the execution of the world.
+/// The data is held by references, and needs to outlive the context itself
 pub struct Context<'a> {
     data: &'a dyn Data,
 }
@@ -20,32 +16,16 @@ impl<'a> Context<'a> {
         Self { data }
     }
 
-    /// Borrows data of type T mutably from the context. Does not panic.
-    pub fn borrow<T: 'static>(&self) -> Result<AtomicRef<T>> {
-        let val = unsafe { self.data.get(TypeId::of::<T>()) }
-            .ok_or_else(|| Error::MissingData(TypeInfo::of::<T>()))?;
+    /// Borrows data of type T from the context. Does not panic.
+    pub fn borrow<T>(&'a self) -> Result<T::Target>
+    where
+        T: CellBorrow<'a> + IntoAccess,
+    {
+        let access = T::access();
+        let val = unsafe { self.data.get(access.id()) }
+            .ok_or_else(|| Error::MissingData(access.name()))?;
 
-        let val = val
-            .try_borrow()
-            .map_err(|_| Error::Borrow(type_name::<T>()))?;
-
-        Ok(AtomicRef::map(val, |val| unsafe {
-            val.cast::<T>().as_ref()
-        }))
-    }
-
-    /// Borrows data of type T mutably from the context. Does not panic.
-    pub fn borrow_mut<T: 'static>(&self) -> Result<AtomicRefMut<T>> {
-        let val = unsafe { self.data.get(TypeId::of::<T>()) }
-            .ok_or_else(|| Error::MissingData(TypeInfo::of::<T>()))?;
-
-        let val = val
-            .try_borrow_mut()
-            .map_err(|_| Error::BorrowMut(type_name::<T>()))?;
-
-        Ok(AtomicRefMut::map(val, |val| unsafe {
-            val.cast::<T>().as_mut()
-        }))
+        T::borrow(val)
     }
 }
 
@@ -152,18 +132,18 @@ mod tests {
         let context = Context::new(&data);
 
         {
-            let a = context.borrow::<i32>().unwrap();
-            let mut b = context.borrow_mut::<&str>().unwrap();
+            let a = context.borrow::<&i32>().unwrap();
+            let mut b = context.borrow::<&mut &str>().unwrap();
 
             assert_eq!(*b, "Hello, World");
             *b = "Foo Fighters";
             drop(b);
 
-            let b = context.borrow::<&str>().unwrap();
+            let b = context.borrow::<&&str>().unwrap();
             assert_eq!(*a, 64);
             assert_eq!(*b, "Foo Fighters");
 
-            let c = context.borrow::<f32>();
+            let c = context.borrow::<&f32>();
             assert!(c.is_err());
         }
     }

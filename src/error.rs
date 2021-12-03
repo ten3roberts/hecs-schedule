@@ -1,4 +1,3 @@
-use hecs::TypeInfo;
 use smallvec::SmallVec;
 use thiserror::*;
 
@@ -20,7 +19,7 @@ pub enum Error {
     ComponentError(#[from] hecs::ComponentError),
 
     #[error("Context does not have data of type {0:?}")]
-    MissingData(TypeInfo),
+    MissingData(&'static str),
 
     #[error("Data of type {0:?} is already mutable borrowd")]
     Borrow(&'static str),
