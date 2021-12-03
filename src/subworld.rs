@@ -1,7 +1,8 @@
+use smallvec::smallvec;
 use std::marker::PhantomData;
 
 use crate::{access::*, Error, Result, View};
-use hecs::{Query, QueryBorrow, World};
+use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, TypeInfo, World};
 
 pub struct SubWorld<'a, T> {
     world: &'a World,
@@ -41,7 +42,7 @@ impl<'w, T: ComponentAccess> SubWorld<'w, T> {
 
     /// Query the subworld.
     /// Fails if the query items are not compatible with the subworld
-    pub fn try_query<Q: Query + Subset + ComponentAccess>(&self) -> Result<QueryBorrow<'w, Q>> {
+    pub fn try_query<Q: Query + Subset>(&self) -> Result<QueryBorrow<'w, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::accesses(),
@@ -50,6 +51,41 @@ impl<'w, T: ComponentAccess> SubWorld<'w, T> {
         } else {
             Ok(self.world.query())
         }
+    }
+
+    /// Query the subworld for a single entity.
+    /// Wraps the hecs::NoSuchEntity error and provides the entity id
+    pub fn query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<'w, Q>> {
+        if !self.has_all::<Q>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: T::accesses(),
+                query: Q::accesses(),
+            });
+        }
+
+        self.world
+            .query_one(entity)
+            .map_err(|_| Error::NoSuchEntity(entity))
+    }
+
+    /// Get a single component from the world.
+    ///
+    /// If a mutable borrow is desired, use [`Self::query_one`] since the world is
+    /// only immutably borrowed.
+    ///
+    /// Wraps the hecs::NoSuchEntity error and provides the entity id
+    pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
+        if !self.has::<&C>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: T::accesses(),
+                query: smallvec![Access {
+                    ty: TypeInfo::of::<C>(),
+                    exclusive: false,
+                }],
+            });
+        }
+
+        self.world.get(entity).map_err(|e| e.into())
     }
 }
 

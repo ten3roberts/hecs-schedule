@@ -25,6 +25,7 @@ fn query() {
     let mut world = World::default();
 
     world.spawn((67_i32, 7.0_f32));
+    let entity = world.spawn((42_i32, 3.1415_f32));
 
     let subworld = SubWorld::<(&i32, &mut f32)>::new(&world);
 
@@ -34,4 +35,19 @@ fn query() {
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
+    let val = subworld.get::<i32>(entity).unwrap();
+    assert_eq!(*val, 42);
+}
+
+#[test]
+#[should_panic]
+fn fail_query() {
+    let mut world = World::default();
+
+    let entity = world.spawn((42_i32, 3.1415_f32));
+
+    let subworld = SubWorld::<(&i32, &f32)>::new(&world);
+
+    let val = subworld.get::<u64>(entity).unwrap();
+    assert_eq!(*val, 42);
 }

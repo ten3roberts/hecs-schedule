@@ -4,8 +4,8 @@ use smallvec::{smallvec, SmallVec};
 
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
-    ty: TypeInfo,
-    exclusive: bool,
+    pub(crate) ty: TypeInfo,
+    pub(crate) exclusive: bool,
 }
 
 impl Access {
@@ -67,7 +67,7 @@ pub trait ComponentAccess {
     fn has<U: IntoAccess>() -> bool;
 }
 
-pub trait Subset {
+pub trait Subset: ComponentAccess {
     fn is_subset<U: ComponentAccess>() -> bool;
 }
 

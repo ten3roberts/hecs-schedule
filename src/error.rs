@@ -12,4 +12,9 @@ pub enum Error {
         subworld: SmallVec<[Access; 8]>,
         query: SmallVec<[Access; 8]>,
     },
+
+    #[error("Entity: {0:?} does not exist in world")]
+    NoSuchEntity(hecs::Entity),
+    #[error("The entity did not have the desired component")]
+    ComponentError(#[from] hecs::ComponentError),
 }
