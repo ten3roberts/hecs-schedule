@@ -2,7 +2,7 @@ use std::{any::TypeId, marker::PhantomData, ptr::NonNull};
 
 use atomic_refcell::AtomicRefCell;
 
-use crate::{CellBorrow, Error, IntoAccess, Result};
+use crate::{ContextBorrow, Error, IntoAccess, Result};
 
 /// Holds all data necessary for the execution of the world.
 /// The data is held by references, and needs to outlive the context itself
@@ -19,15 +19,12 @@ impl<'a> Context<'a> {
     /// Borrows data of type T from the context. Does not panic.
     pub fn borrow<T>(&'a self) -> Result<T::Target>
     where
-        T: CellBorrow<'a>,
-        T::Cell: IntoAccess,
+        T: ContextBorrow<'a>,
     {
-        let val = self.atomic_ref::<T::Cell>()?;
-
-        T::borrow(val)
+        T::borrow(self)
     }
 
-    pub fn atomic_ref<T: IntoAccess>(&'a self) -> Result<&AtomicRefCell<NonNull<u8>>> {
+    pub fn cell<T: IntoAccess>(&'a self) -> Result<&AtomicRefCell<NonNull<u8>>> {
         let access = T::access();
         unsafe { self.data.get(access.id()) }.ok_or_else(|| Error::MissingData(access.name()))
     }

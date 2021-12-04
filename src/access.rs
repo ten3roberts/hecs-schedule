@@ -1,13 +1,6 @@
-use std::any::type_name;
-use std::ptr::NonNull;
-
-use crate::impl_for_tuples;
-use crate::Error;
-use crate::Result;
-use atomic_refcell::AtomicRefMut;
-use atomic_refcell::{AtomicRef, AtomicRefCell};
 use hecs::TypeInfo;
 use smallvec::{smallvec, SmallVec};
+use std::any::type_name;
 
 #[derive(Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
@@ -85,37 +78,6 @@ impl<T: 'static> IntoAccess for &mut T {
         let r = U::access();
 
         l.info == r.info
-    }
-}
-
-/// Helper trait for borrowing either immutably or mutably from an
-/// AtomicRefCell.
-pub trait CellBorrow<'a> {
-    type Target;
-    type Cell;
-
-    fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target>;
-}
-
-impl<'a, T: 'static> CellBorrow<'a> for &'a T {
-    type Target = AtomicRef<'a, T>;
-    type Cell = Self;
-
-    fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target> {
-        cell.try_borrow()
-            .map_err(|_| Error::Borrow(type_name::<T>()))
-            .map(|cell| AtomicRef::map(cell, |val| unsafe { val.cast().as_ref() }))
-    }
-}
-
-impl<'a, T: 'static> CellBorrow<'a> for &'a mut T {
-    type Target = AtomicRefMut<'a, T>;
-    type Cell = Self;
-
-    fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target> {
-        cell.try_borrow_mut()
-            .map_err(|_| Error::BorrowMut(type_name::<T>()))
-            .map(|cell| AtomicRefMut::map(cell, |val| unsafe { val.cast().as_mut() }))
     }
 }
 

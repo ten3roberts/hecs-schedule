@@ -2,7 +2,7 @@ use atomic_refcell::AtomicRef;
 use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
-use crate::{access::*, Context, Error, Result, View};
+use crate::{access::*, Context, ContextBorrow, Error, Result, View};
 use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, TypeInfo, World};
 
 /// Type alias for a subworld referencing the world by an atomic ref. Most
@@ -111,17 +111,15 @@ where
     }
 }
 
-impl<'a, T> CellBorrow<'a> for SubWorldRaw<AtomicRef<'a, World>, T> {
+impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
     type Target = Self;
-    type Cell = World;
 
-    fn borrow(
-        cell: &'a atomic_refcell::AtomicRefCell<std::ptr::NonNull<u8>>,
-    ) -> Result<Self::Target> {
-        let val = cell
+    fn borrow(context: &'a Context) -> Result<Self> {
+        let val = context
+            .cell::<&World>()?
             .try_borrow()
             .map_err(|_| Error::Borrow(type_name::<T>()))
-            .map(|cell| AtomicRef::map(cell, |val| unsafe { val.cast::<Self::Cell>().as_ref() }))?;
+            .map(|cell| AtomicRef::map(cell, |val| unsafe { val.cast().as_ref() }))?;
 
         Ok(Self::new(val))
     }
@@ -130,7 +128,7 @@ impl<'a, T> CellBorrow<'a> for SubWorldRaw<AtomicRef<'a, World>, T> {
 impl<'a, T> From<&'a Context<'a>> for SubWorldRaw<AtomicRef<'a, World>, T> {
     fn from(context: &'a Context) -> Self {
         let borrow = context
-            .atomic_ref::<&World>()
+            .cell::<&World>()
             .expect("Failed to borrow world from context")
             .borrow();
 
