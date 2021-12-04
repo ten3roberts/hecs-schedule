@@ -12,24 +12,28 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     /// Construct a new context from the tuple of references `data`
-    pub(crate) fn new(data: &'a dyn Data) -> Context {
+    pub fn new(data: &'a dyn Data) -> Context {
         Self { data }
     }
 
     /// Borrows data of type T from the context. Does not panic.
     pub fn borrow<T>(&'a self) -> Result<T::Target>
     where
-        T: CellBorrow<'a> + IntoAccess,
+        T: CellBorrow<'a>,
+        T::Cell: IntoAccess,
     {
-        let access = T::access();
-        let val = unsafe { self.data.get(access.id()) }
-            .ok_or_else(|| Error::MissingData(access.name()))?;
+        let val = self.atomic_ref::<T::Cell>()?;
 
         T::borrow(val)
     }
+
+    pub fn atomic_ref<T: IntoAccess>(&'a self) -> Result<&AtomicRefCell<NonNull<u8>>> {
+        let access = T::access();
+        unsafe { self.data.get(access.id()) }.ok_or_else(|| Error::MissingData(access.name()))
+    }
 }
 
-pub(crate) trait Data {
+pub trait Data {
     unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
@@ -43,21 +47,9 @@ impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
     }
 }
 
-pub(crate) trait IntoData {
+pub trait IntoData {
     type Target: Data;
     unsafe fn into_data(self) -> Self::Target;
-}
-
-/// Implement for a unary nontuple
-impl<T: 'static> IntoData for &mut T {
-    type Target = ((AtomicRefCell<NonNull<u8>>, PhantomData<T>),);
-
-    unsafe fn into_data(self) -> Self::Target {
-        ((
-            AtomicRefCell::new(NonNull::new_unchecked(self as *mut _ as *mut u8)),
-            PhantomData,
-        ),)
-    }
 }
 
 macro_rules! tuple_impls {

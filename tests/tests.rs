@@ -7,7 +7,7 @@ fn has() {
 
     world.spawn((67_i32, 7.0_f32));
 
-    let subworld = SubWorld::<(&i32, &mut f32)>::new(&world);
+    let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
 
     assert!(subworld.has::<&i32>());
     assert!(!subworld.has::<&mut i32>());
@@ -27,7 +27,7 @@ fn query() {
     world.spawn((67_i32, 7.0_f32));
     let entity = world.spawn((42_i32, 3.1415_f32));
 
-    let subworld = SubWorld::<(&i32, &mut f32)>::new(&world);
+    let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
 
     let mut query = subworld.query::<(&i32, &mut f32)>();
     query
@@ -46,7 +46,7 @@ fn fail_query() {
 
     let entity = world.spawn((42_i32, 3.1415_f32));
 
-    let subworld = SubWorld::<(&i32, &f32)>::new(&world);
+    let subworld = SubWorldRef::<(&i32, &f32)>::new(&world);
 
     let val = subworld.get::<u64>(entity).unwrap();
     assert_eq!(*val, 42);

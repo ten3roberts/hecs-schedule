@@ -92,11 +92,14 @@ impl<T: 'static> IntoAccess for &mut T {
 /// AtomicRefCell.
 pub trait CellBorrow<'a> {
     type Target;
+    type Cell;
+
     fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target>;
 }
 
-impl<'a, T: 'a> CellBorrow<'a> for &T {
+impl<'a, T: 'static> CellBorrow<'a> for &'a T {
     type Target = AtomicRef<'a, T>;
+    type Cell = Self;
 
     fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target> {
         cell.try_borrow()
@@ -105,8 +108,9 @@ impl<'a, T: 'a> CellBorrow<'a> for &T {
     }
 }
 
-impl<'a, T: 'a> CellBorrow<'a> for &mut T {
+impl<'a, T: 'static> CellBorrow<'a> for &'a mut T {
     type Target = AtomicRefMut<'a, T>;
+    type Cell = Self;
 
     fn borrow(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self::Target> {
         cell.try_borrow_mut()
@@ -114,6 +118,9 @@ impl<'a, T: 'a> CellBorrow<'a> for &mut T {
             .map(|cell| AtomicRefMut::map(cell, |val| unsafe { val.cast().as_mut() }))
     }
 }
+
+/// Marker type for a subworld which has access to the whole world
+pub struct AllAccess;
 
 /// Trait for a set of component accesses
 pub trait ComponentAccess {
@@ -139,6 +146,17 @@ impl<A: IntoAccess> ComponentAccess for A {
     }
     fn has<U: IntoAccess>() -> bool {
         A::compatible::<U>()
+    }
+}
+
+impl ComponentAccess for AllAccess {
+    fn accesses() -> SmallVec<[Access; 8]> {
+        smallvec![]
+    }
+
+    // Has everything
+    fn has<U: IntoAccess>() -> bool {
+        true
     }
 }
 
