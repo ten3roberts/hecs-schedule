@@ -8,7 +8,7 @@ use crate::{
     borrow::{Borrows, ComponentBorrow, ContextBorrow},
     Error, Result, View,
 };
-use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, World};
+use hecs::{Component, ComponentError, Entity, NoSuchEntity, Query, QueryBorrow, QueryOne, World};
 
 /// Type alias for a subworld referencing the world by an [atomic_refcell::AtomicRef]. Most
 /// common for schedules
@@ -57,7 +57,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Query the subworld.
     /// # Panics
     /// Panics if the query items are not a compatible subset of the subworld.
-    pub fn query<'w, Q: Query + Subset>(&'w self) -> QueryBorrow<'w, Q> {
+    pub fn query<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q> {
         if !self.has_all::<Q>() {
             panic!("Attempt to execute query on incompatible subworld")
         }
@@ -67,7 +67,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 
     /// Query the subworld.
     /// Fails if the query items are not compatible with the subworld
-    pub fn try_query<'w, Q: Query + Subset>(&'w self) -> Result<QueryBorrow<'w, Q>> {
+    pub fn try_query<Q: Query + Subset>(&self) -> Result<QueryBorrow<'_, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::borrows(),
@@ -80,7 +80,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 
     /// Query the subworld for a single entity.
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
-    pub fn query_one<'w, Q: Query + Subset>(&'w self, entity: Entity) -> Result<QueryOne<'w, Q>> {
+    pub fn try_query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<'_, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::borrows(),
@@ -99,7 +99,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// only immutably borrowed.
     ///
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
-    pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
+    pub fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         if !self.has::<&C>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::borrows(),
@@ -177,5 +177,76 @@ impl<A, T: ComponentBorrow> ComponentBorrow for SubWorldRaw<A, T> {
 
     fn has<U: IntoAccess>() -> bool {
         T::has::<U>()
+    }
+}
+
+/// Trait for allowing function to work on both World and SubWorld
+pub trait GenericWorld {
+    /// Queries the world
+    fn query<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q>;
+
+    /// Queries the world for a specific entity
+    fn query_one<Q: Query + Subset>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<QueryOne<'_, Q>, NoSuchEntity>;
+
+    /// Get a single component for an entity
+    /// Returns the contextual result since hecs-schedule is required to be imported
+    /// anyway
+    fn get<C: Component>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<hecs::Ref<'_, C>, ComponentError>;
+}
+
+impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
+    fn query<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q> {
+        match self.try_query::<Q>() {
+            Ok(val) => val,
+            Err(val) => panic!("{}", val),
+        }
+    }
+
+    fn query_one<Q: Query + Subset>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<QueryOne<'_, Q>, NoSuchEntity> {
+        match self.try_query_one::<Q>(entity) {
+            Ok(val) => Ok(val),
+            Err(Error::NoSuchEntity(_)) => Err(NoSuchEntity),
+            Err(val) => panic!("{}", val),
+        }
+    }
+
+    fn get<C: Component>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<hecs::Ref<'_, C>, ComponentError> {
+        match self.try_get(entity) {
+            Ok(val) => Ok(val),
+            Err(Error::ComponentError(val)) => Err(val),
+            Err(val) => panic!("{}", val),
+        }
+    }
+}
+
+impl GenericWorld for World {
+    fn query<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q> {
+        self.query()
+    }
+
+    fn query_one<Q: Query + Subset>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<QueryOne<'_, Q>, NoSuchEntity> {
+        self.query_one(entity)
+    }
+
+    fn get<C: Component>(
+        &self,
+        entity: Entity,
+    ) -> std::result::Result<hecs::Ref<'_, C>, ComponentError> {
+        self.get(entity)
     }
 }

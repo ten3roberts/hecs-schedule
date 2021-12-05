@@ -146,14 +146,14 @@ mod tests {
         let mut count_closure = |w: SubWorld<&i32>| assert_eq!(w.query::<&i32>().iter().count(), 3);
         let mut foo = |_: SubWorld<&i32>| {};
         let mut name_query_system = |w: SubWorld<&String>| -> Result<()> {
-            let name = w.get::<String>(a)?;
+            let name = w.try_get::<String>(a)?;
             eprintln!("Name: {:?}", *name);
             Ok(())
         };
 
         let mut name_check_system = |w: SubWorld<&&'static str>| -> anyhow::Result<()> {
             for (e, n) in [(a, "a"), (b, "b"), (c, "c")] {
-                let name = w.get::<&str>(e)?;
+                let name = w.try_get::<&str>(e)?;
                 ensure!(*name == n, "Names did not match");
             }
 

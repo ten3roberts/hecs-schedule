@@ -38,7 +38,7 @@ fn query() {
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
-    let val = subworld.get::<i32>(entity).unwrap();
+    let val = subworld.try_get::<i32>(entity).unwrap();
     assert_eq!(*val, 42);
 }
 
@@ -51,7 +51,7 @@ fn fail_query() {
 
     let subworld = SubWorldRef::<(&i32, &f32)>::new(&world);
 
-    let val = subworld.get::<u64>(entity).unwrap();
+    let val = subworld.try_get::<u64>(entity).unwrap();
     assert_eq!(*val, 42);
 }
 
@@ -92,7 +92,7 @@ fn test_schedule() {
     let mut foo = Foo { val: 42 };
 
     let system = move |w: SubWorld<&i32>| -> anyhow::Result<()> {
-        ensure!(*w.get::<i32>(a)? == 789, "Entity did not match");
+        ensure!(*w.try_get::<i32>(a)? == 789, "Entity did not match");
 
         Ok(())
     };
