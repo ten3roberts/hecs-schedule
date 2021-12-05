@@ -1,5 +1,6 @@
 //! This module provides the error type and result type aliases for
 //! hecs-schedule.
+use hecs::Entity;
 use thiserror::*;
 
 use crate::{borrow::Borrows, SystemName};
@@ -19,9 +20,13 @@ pub enum Error {
     #[error("Entity: {0:?} does not exist in world")]
     #[doc(hidden)]
     NoSuchEntity(hecs::Entity),
-    #[error("The entity did not have the desired component")]
+    #[error("The entity {0:?} did not have the desired component {1:?}")]
     #[doc(hidden)]
-    ComponentError(#[from] hecs::ComponentError),
+    MissingComponent(Entity, #[source] hecs::MissingComponent),
+
+    #[error("Query for entity {0:?} did not satisfy {1:?}")]
+    #[doc(hidden)]
+    UnsatisfiedQuery(Entity, &'static str),
 
     #[error("Context does not have data of type {0:?}")]
     #[doc(hidden)]

@@ -2,13 +2,13 @@ use atomic_refcell::AtomicRef;
 use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
-use crate::Context;
 use crate::{
     access::*,
     borrow::{Borrows, ComponentBorrow, ContextBorrow},
     Error, Result, View,
 };
-use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, World};
+use crate::{Context, QueryOne};
+use hecs::{Component, Entity, Query, QueryBorrow, World};
 
 /// Type alias for a subworld referencing the world by an [atomic_refcell::AtomicRef]. Most
 /// common for schedules
@@ -85,9 +85,12 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        self.world
+        let query = self
+            .world
             .query_one(entity)
-            .map_err(|_| Error::NoSuchEntity(entity))
+            .map_err(|_| Error::NoSuchEntity(entity))?;
+
+        Ok(QueryOne::new(entity, query))
     }
 
     /// Get a single component from the world.
@@ -104,7 +107,13 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        self.world.get(entity).map_err(|e| e.into())
+        match self.world.get(entity) {
+            Ok(val) => Ok(val),
+            Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
+            Err(hecs::ComponentError::MissingComponent(name)) => {
+                Err(Error::MissingComponent(entity, name))
+            }
+        }
     }
 }
 
@@ -211,7 +220,7 @@ impl GenericWorld for World {
 
     fn try_query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<Q>> {
         match self.query_one(entity) {
-            Ok(val) => Ok(val),
+            Ok(val) => Ok(QueryOne::new(entity, val)),
             Err(_) => Err(Error::NoSuchEntity(entity)),
         }
     }
@@ -219,7 +228,10 @@ impl GenericWorld for World {
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         match self.get(entity) {
             Ok(val) => Ok(val),
-            Err(val) => Err(Error::ComponentError(val)),
+            Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
+            Err(hecs::ComponentError::MissingComponent(name)) => {
+                Err(Error::MissingComponent(entity, name))
+            }
         }
     }
 }

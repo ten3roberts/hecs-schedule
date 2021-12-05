@@ -114,6 +114,7 @@ pub mod borrow;
 mod commandbuffer;
 pub mod context;
 pub mod error;
+mod query;
 mod schedule;
 mod subworld;
 pub mod system;
@@ -124,6 +125,7 @@ pub use borrow::{Read, Write};
 pub use commandbuffer::*;
 pub use context::*;
 pub use error::Error;
+pub use query::*;
 // Don't export result so that hecs-schedule can be glob imported without
 // conflict
 pub(crate) use error::Result;
