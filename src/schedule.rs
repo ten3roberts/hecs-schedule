@@ -18,7 +18,7 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub fn push<Args, Ret, S>(&mut self, system: S)
+    fn push<Args, Ret, S>(&mut self, system: S)
     where
         S: 'static + System<Args, Ret> + Send + Sync,
     {
@@ -69,10 +69,12 @@ pub struct Schedule {
 }
 
 impl Schedule {
+    /// Creates a new schedule from provided batches.
     pub fn new(batches: Vec<Batch>) -> Self {
         Self { batches }
     }
 
+    /// Creates a new [ScheduleBuilder]
     pub fn builder() -> ScheduleBuilder {
         ScheduleBuilder::default()
     }
@@ -92,6 +94,8 @@ impl Schedule {
     }
 
     #[cfg(feature = "parallel")]
+    /// Executes the systems inside the schedule ina parallel using the provided data, which
+    /// is a tuple of mutable references. Returns Err if any system fails
     pub fn execute<D: IntoData + Send + Sync>(&mut self, data: D) -> Result<()> {
         let data = unsafe { data.into_data() };
 
@@ -114,10 +118,12 @@ pub struct ScheduleBuilder {
 }
 
 impl ScheduleBuilder {
+    /// Creates a new [ScheduleBuilder]
     pub fn new() -> Self {
         Default::default()
     }
 
+    /// Add a system to the builder
     pub fn add_system<Args, Ret, S>(&mut self, system: S) -> &mut Self
     where
         S: 'static + System<Args, Ret> + Send + Sync,

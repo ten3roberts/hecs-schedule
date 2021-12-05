@@ -1,5 +1,6 @@
 /// Traits for types which represent a view or subset of some other type.
 pub trait View<'a> {
+    /// The type which View comes from
     type Superset;
     /// Splits from the containing superset
     fn split(orig: Self::Superset) -> Self;

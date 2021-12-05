@@ -5,6 +5,7 @@ use std::any::type_name;
 use crate::borrow::{Borrows, ComponentBorrow};
 
 #[derive(Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
+/// Describes how a type is accessed.
 pub struct Access {
     pub(crate) name: &'static str,
     pub(crate) info: TypeInfo,
@@ -22,6 +23,7 @@ impl std::fmt::Debug for Access {
 }
 
 impl Access {
+    /// Creates a new access from a known  type
     pub fn new<T: IntoAccess>() -> Self {
         T::access()
     }
@@ -47,8 +49,11 @@ impl Access {
     }
 }
 
+/// Convert a type into the correspodning access.
 pub trait IntoAccess {
+    /// Performs the conversion.
     fn access() -> Access;
+    /// Check if the borrow is compatible with another borrow.
     fn compatible<U: IntoAccess>() -> bool;
 }
 
@@ -89,7 +94,9 @@ impl<T: 'static> IntoAccess for &mut T {
 /// Marker type for a subworld which has access to the whole world
 pub struct AllAccess;
 
+///Declare subset relations between tuples
 pub trait Subset: ComponentBorrow {
+    /// Returns true if U is a subset of Self
     fn is_subset<U: ComponentBorrow>() -> bool;
 }
 

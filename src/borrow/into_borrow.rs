@@ -5,10 +5,12 @@ use crate::{Context, Read, Result, SubWorld, Write};
 
 use super::ContextBorrow;
 
+#[doc(hidden)]
 pub struct Borrower<T>(PhantomData<T>);
 
-// Lifetime erasure in waiting of GAT
+/// Lifetime erasure in waiting of GAT
 pub trait IntoBorrow {
+    /// The borrow type
     type Borrow: for<'x> ContextBorrow<'x>;
 }
 
@@ -24,6 +26,7 @@ impl<'a, T: 'static> ContextBorrow<'a> for Borrower<T> {
     }
 }
 
+#[doc(hidden)]
 pub struct BorrowerMut<T>(PhantomData<T>);
 
 impl<T: 'static> IntoBorrow for Write<'_, T> {
@@ -38,6 +41,7 @@ impl<'a, T: 'static> ContextBorrow<'a> for BorrowerMut<T> {
     }
 }
 
+#[doc(hidden)]
 pub struct SubWorldBorrower<T>(PhantomData<T>);
 
 impl<T: 'static> IntoBorrow for SubWorld<'_, T> {

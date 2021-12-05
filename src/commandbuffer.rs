@@ -4,7 +4,9 @@ use hecs::{
     Bundle, CommandBuffer as CommandBufferInternal, Component, DynamicBundle, Entity, World,
 };
 
+/// Trait for deferring modifications to the world.
 pub trait WriteCmd: 'static {
+    /// Executes on the world
     fn execute(&mut self, world: &mut World);
 }
 
@@ -51,6 +53,7 @@ pub struct CommandBuffer {
 }
 
 impl CommandBuffer {
+    /// Creates a new empty commandbuffer
     pub fn new() -> Self {
         Self::default()
     }

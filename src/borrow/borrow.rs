@@ -4,6 +4,7 @@ use std::{
     ptr::NonNull,
 };
 
+/// Type alias for list of borrows
 pub type Borrows = SmallVec<[Access; 4]>;
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
@@ -33,6 +34,7 @@ impl<'a, T> Deref for Read<'a, T> {
 }
 
 impl<'a, T> Read<'a, T> {
+    /// Creates a new Read borrow from an atomic ref
     pub fn new(borrow: AtomicRef<'a, T>) -> Self {
         Self(borrow)
     }
@@ -51,6 +53,7 @@ impl<'a, T: 'static> Read<'a, T> {
 pub struct Write<'a, T>(pub(crate) AtomicRefMut<'a, T>);
 
 impl<'a, T> Write<'a, T> {
+    /// Creates a new Write borrow from an atomic ref
     pub fn new(borrow: AtomicRefMut<'a, T>) -> Self {
         Self(borrow)
     }
@@ -84,8 +87,10 @@ impl<'a, T> DerefMut for Write<'a, T> {
 
 /// Helper trait for borrowing either immutably or mutably from context
 pub trait ContextBorrow<'a> {
+    /// The resulting type after borrowing from context
     type Target;
 
+    /// Borrow type from context
     fn borrow(context: &'a Context) -> Result<Self::Target>;
 }
 

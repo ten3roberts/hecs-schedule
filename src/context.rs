@@ -1,3 +1,5 @@
+//! This module provides types and traits associated to accessing of borrowed
+//! values.
 use std::{any::TypeId, marker::PhantomData, ptr::NonNull};
 
 use atomic_refcell::AtomicRefCell;
@@ -28,6 +30,8 @@ impl<'a> Context<'a> {
         T::borrow(self)
     }
 
+    /// Returns the cell associated to `T`.
+    /// **Note**: Types are erased, but casting is guaranteed to be correct.
     pub fn cell<T: IntoAccess>(&'a self) -> Result<&AtomicRefCell<NonNull<u8>>> {
         let access = T::access();
         self.data
@@ -36,7 +40,9 @@ impl<'a> Context<'a> {
     }
 }
 
+/// Dynamically accessed static collection of values
 pub unsafe trait Data {
+    /// Get the cell associated to the `TypeId`.
     fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
@@ -56,8 +62,11 @@ unsafe impl<A: 'static + Send + Sync> Data for (AtomicRefCell<NonNull<u8>>, Phan
     }
 }
 
+/// Convert a tuple or other type into [Data].
 pub trait IntoData: Send + Sync {
+    /// The corresponding [Data] type.
     type Target: Data;
+    /// Performs the conversion.
     unsafe fn into_data(self) -> Self::Target;
 }
 

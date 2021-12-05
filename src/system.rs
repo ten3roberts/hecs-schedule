@@ -1,3 +1,5 @@
+//! Provides system which are an abstraction for anything that can be executed
+//! against a [Context](crate::Context).
 use std::{any::type_name, borrow::Cow};
 
 use crate::{
