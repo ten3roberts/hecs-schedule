@@ -11,7 +11,7 @@ pub mod system;
 mod traits;
 
 pub use access::*;
-pub use borrow::{Borrow, BorrowMut};
+pub use borrow::{Read, Write};
 pub use commandbuffer::*;
 pub use context::*;
 pub use error::*;

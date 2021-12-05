@@ -16,15 +16,15 @@ use super::ComponentBorrow;
 /// Wrapper type for an immutably borrowed value from schedule context
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct Borrow<'a, T>(pub(crate) AtomicRef<'a, T>);
+pub struct Read<'a, T>(pub(crate) AtomicRef<'a, T>);
 
-impl<'a, T> Clone for Borrow<'a, T> {
+impl<'a, T> Clone for Read<'a, T> {
     fn clone(&self) -> Self {
         Self(AtomicRef::<'a, T>::clone(&self.0))
     }
 }
 
-impl<'a, T> Deref for Borrow<'a, T> {
+impl<'a, T> Deref for Read<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -32,13 +32,13 @@ impl<'a, T> Deref for Borrow<'a, T> {
     }
 }
 
-impl<'a, T> Borrow<'a, T> {
+impl<'a, T> Read<'a, T> {
     pub fn new(borrow: AtomicRef<'a, T>) -> Self {
         Self(borrow)
     }
 }
 
-impl<'a, T: 'static> Borrow<'a, T> {
+impl<'a, T: 'static> Read<'a, T> {
     pub(crate) fn try_from_untyped(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self> {
         cell.try_borrow()
             .map_err(|_| Error::Borrow(type_name::<T>()))
@@ -48,15 +48,15 @@ impl<'a, T: 'static> Borrow<'a, T> {
 
 #[repr(transparent)]
 /// Wrapper type for an immutably borrowed value
-pub struct BorrowMut<'a, T>(pub(crate) AtomicRefMut<'a, T>);
+pub struct Write<'a, T>(pub(crate) AtomicRefMut<'a, T>);
 
-impl<'a, T> BorrowMut<'a, T> {
+impl<'a, T> Write<'a, T> {
     pub fn new(borrow: AtomicRefMut<'a, T>) -> Self {
         Self(borrow)
     }
 }
 
-impl<'a, T: 'static> BorrowMut<'a, T> {
+impl<'a, T: 'static> Write<'a, T> {
     pub(crate) fn try_from_untyped(cell: &'a AtomicRefCell<NonNull<u8>>) -> Result<Self> {
         cell.try_borrow_mut()
             .map_err(|_| Error::BorrowMut(type_name::<T>()))
@@ -68,7 +68,7 @@ impl<'a, T: 'static> BorrowMut<'a, T> {
     }
 }
 
-impl<'a, T> Deref for BorrowMut<'a, T> {
+impl<'a, T> Deref for Write<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -76,7 +76,7 @@ impl<'a, T> Deref for BorrowMut<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for BorrowMut<'a, T> {
+impl<'a, T> DerefMut for Write<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -90,38 +90,38 @@ pub trait ContextBorrow<'a> {
 }
 
 impl<'a, T: 'static> ContextBorrow<'a> for &'a T {
-    type Target = Borrow<'a, T>;
+    type Target = Read<'a, T>;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
-        Borrow::try_from_untyped(context.cell::<&T>()?)
+        Read::try_from_untyped(context.cell::<&T>()?)
     }
 }
 
 impl<'a, T: 'static> ContextBorrow<'a> for &'a mut T {
-    type Target = BorrowMut<'a, T>;
+    type Target = Write<'a, T>;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
-        BorrowMut::try_from_untyped(context.cell::<&mut T>()?)
+        Write::try_from_untyped(context.cell::<&mut T>()?)
     }
 }
 
-impl<'a, T: 'static> ContextBorrow<'a> for Borrow<'a, T> {
+impl<'a, T: 'static> ContextBorrow<'a> for Read<'a, T> {
     type Target = Self;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
-        Borrow::try_from_untyped(context.cell::<&T>()?)
+        Read::try_from_untyped(context.cell::<&T>()?)
     }
 }
 
-impl<'a, T: 'static> ContextBorrow<'a> for BorrowMut<'a, T> {
+impl<'a, T: 'static> ContextBorrow<'a> for Write<'a, T> {
     type Target = Self;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
-        BorrowMut::try_from_untyped(context.cell::<&mut T>()?)
+        Write::try_from_untyped(context.cell::<&mut T>()?)
     }
 }
 
-impl<'a, T: 'static> ComponentBorrow for Borrow<'a, T> {
+impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
     fn borrows() -> Borrows {
         smallvec![Access::new::<&T>()]
     }
@@ -134,7 +134,7 @@ impl<'a, T: 'static> ComponentBorrow for Borrow<'a, T> {
     }
 }
 
-impl<'a, T: 'static> ComponentBorrow for BorrowMut<'a, T> {
+impl<'a, T: 'static> ComponentBorrow for Write<'a, T> {
     fn borrows() -> Borrows {
         smallvec![Access::new::<&mut T>()]
     }

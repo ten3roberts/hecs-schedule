@@ -1,7 +1,7 @@
 ///! This module works around the lifetimes for borrow when GAT isn't available
 use std::marker::PhantomData;
 
-use crate::{Borrow, BorrowMut, Context, Result, SubWorld};
+use crate::{Context, Read, Result, SubWorld, Write};
 
 use super::ContextBorrow;
 
@@ -12,12 +12,12 @@ pub trait IntoBorrow {
     type Borrow: for<'x> ContextBorrow<'x>;
 }
 
-impl<T: 'static> IntoBorrow for Borrow<'_, T> {
+impl<T: 'static> IntoBorrow for Read<'_, T> {
     type Borrow = Borrower<T>;
 }
 
 impl<'a, T: 'static> ContextBorrow<'a> for Borrower<T> {
-    type Target = Borrow<'a, T>;
+    type Target = Read<'a, T>;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
         Self::Target::borrow(context)
@@ -26,12 +26,12 @@ impl<'a, T: 'static> ContextBorrow<'a> for Borrower<T> {
 
 pub struct BorrowerMut<T>(PhantomData<T>);
 
-impl<T: 'static> IntoBorrow for BorrowMut<'_, T> {
+impl<T: 'static> IntoBorrow for Write<'_, T> {
     type Borrow = BorrowerMut<T>;
 }
 
 impl<'a, T: 'static> ContextBorrow<'a> for BorrowerMut<T> {
-    type Target = BorrowMut<'a, T>;
+    type Target = Write<'a, T>;
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
         Self::Target::borrow(context)

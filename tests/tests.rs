@@ -99,7 +99,7 @@ fn test_schedule() {
 
     schedule.add_system(system);
 
-    schedule.add_system(|mut val: BorrowMut<Foo>| {
+    schedule.add_system(|mut val: Write<Foo>| {
         val.val = 56;
     });
 
@@ -123,23 +123,23 @@ fn schedule_fail() {
 fn execute_par() {
     let mut val = 3;
     let mut other_val = 3.0;
-    let observe_before = |val: Borrow<i32>| {
+    let observe_before = |val: Read<i32>| {
         sleep(Duration::from_millis(100));
         assert_eq!(*val, 3)
     };
 
     // Should execute at the same time as ^
-    let observe_other = |val: Borrow<f64>| {
+    let observe_other = |val: Read<f64>| {
         sleep(Duration::from_millis(100));
         assert_eq!(*val, 3.0);
     };
 
-    let mutate = |mut val: BorrowMut<i32>| {
+    let mutate = |mut val: Write<i32>| {
         sleep(Duration::from_millis(20));
         *val = 5;
     };
 
-    let observe_after = |val: Borrow<i32>| {
+    let observe_after = |val: Read<i32>| {
         assert_eq!(*val, 5);
     };
 

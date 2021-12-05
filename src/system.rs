@@ -110,12 +110,12 @@ impl_for_tuples!(tuple_impl);
 
 #[cfg(test)]
 mod tests {
-    use crate::{system::System, Borrow, Context, IntoData, SubWorld};
+    use crate::{system::System, Context, IntoData, Read, SubWorld};
     use hecs::World;
 
     use anyhow::{ensure, Result};
 
-    fn count_system(val: Borrow<i32>) {
+    fn count_system(val: Read<i32>) {
         assert_eq!(*val, 6);
     }
 
@@ -158,7 +158,7 @@ mod tests {
             Ok(())
         };
 
-        let mut rename_system = |w: SubWorld<&mut String>, a: Borrow<App>| -> anyhow::Result<()> {
+        let mut rename_system = |w: SubWorld<&mut String>, a: Read<App>| -> anyhow::Result<()> {
             ensure!(a.name == "hecs-schedule", "App name did not match");
 
             w.try_query::<&mut String>()?
