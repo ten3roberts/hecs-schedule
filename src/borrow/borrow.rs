@@ -1,5 +1,6 @@
 use std::{
     any::type_name,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
@@ -10,7 +11,7 @@ pub type Borrows = SmallVec<[Access; 4]>;
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use smallvec::{smallvec, SmallVec};
 
-use crate::{Access, Context, Error, Result};
+use crate::{Access, Context, Error, IntoAccess, Result};
 
 use super::ComponentBorrow;
 
@@ -85,6 +86,16 @@ impl<'a, T> DerefMut for Write<'a, T> {
     }
 }
 
+struct BorrowMarker<T> {
+    marker: PhantomData<T>,
+}
+
+impl<T: IntoAccess> IntoAccess for BorrowMarker<T> {
+    fn access() -> Access {
+        Access::new::<T>()
+    }
+}
+
 /// Helper trait for borrowing either immutably or mutably from context
 pub trait ContextBorrow<'a> {
     /// The resulting type after borrowing from context
@@ -128,7 +139,7 @@ impl<'a, T: 'static> ContextBorrow<'a> for Write<'a, T> {
 
 impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
     fn borrows() -> Borrows {
-        smallvec![Access::new::<&T>()]
+        smallvec![BorrowMarker::<&T>::access()]
     }
 
     fn has<U: crate::IntoAccess>() -> bool {
@@ -141,7 +152,7 @@ impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
 
 impl<'a, T: 'static> ComponentBorrow for Write<'a, T> {
     fn borrows() -> Borrows {
-        smallvec![Access::new::<&mut T>()]
+        smallvec![BorrowMarker::<&mut T>::access()]
     }
 
     fn has<U: crate::IntoAccess>() -> bool {

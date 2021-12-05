@@ -54,7 +54,12 @@ pub trait IntoAccess {
     /// Performs the conversion.
     fn access() -> Access;
     /// Check if the borrow is compatible with another borrow.
-    fn compatible<U: IntoAccess>() -> bool;
+    fn compatible<U: IntoAccess>() -> bool {
+        let l = Self::access();
+        let r = U::access();
+
+        l.info == r.info && (!r.exclusive || r.exclusive == l.exclusive)
+    }
 }
 
 impl<T: 'static> IntoAccess for &T {
@@ -65,13 +70,6 @@ impl<T: 'static> IntoAccess for &T {
             name: type_name::<T>(),
         }
     }
-
-    fn compatible<U: IntoAccess>() -> bool {
-        let l = Self::access();
-        let r = U::access();
-
-        l.info == r.info && !r.exclusive
-    }
 }
 
 impl<T: 'static> IntoAccess for &mut T {
@@ -81,13 +79,6 @@ impl<T: 'static> IntoAccess for &mut T {
             exclusive: true,
             name: type_name::<T>(),
         }
-    }
-
-    fn compatible<U: IntoAccess>() -> bool {
-        let l = Self::access();
-        let r = U::access();
-
-        l.info == r.info
     }
 }
 
