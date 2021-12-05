@@ -1,10 +1,10 @@
 [package]
 name = "hecs-schedule"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Provides shedulable systems and paralell execution for hecs"
 readme ="README.md"
-license = "MIT"
+license-file = "LICENSE"
 authors = [ "Tei Roberts" ]
 documentation = "https://docs.rs/hecs-schedule"
 repository = "https://github.com/ten3roberts/hecs-schedule"
