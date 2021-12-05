@@ -1,6 +1,6 @@
 //! # Hecs-schedule
 //!
-//! Hecs-schedule is a framework for [hecs](https://crates.io/crates/hecs) that
+//! hecs-schedule is a framework for [hecs](https://crates.io/crates/hecs) that
 //! provides system abstractions for paralell execution.
 //!
 //! ## SubWorld
