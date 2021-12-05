@@ -106,6 +106,7 @@ impl Schedule {
 }
 
 #[derive(Default)]
+/// Builder for incrementally constructing a schedule.
 pub struct ScheduleBuilder {
     batches: Vec<Batch>,
     current_batch: Batch,
