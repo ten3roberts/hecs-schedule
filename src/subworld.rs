@@ -58,11 +58,8 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// # Panics
     /// Panics if the query items are not a compatible subset of the subworld.
     pub fn query<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q> {
-        if !self.has_all::<Q>() {
-            panic!("Attempt to execute query on incompatible subworld")
-        }
-
-        self.world.query()
+        self.try_query()
+            .expect("Failed to execute query on subworld")
     }
 
     /// Query the subworld.
@@ -99,7 +96,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// only immutably borrowed.
     ///
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
-    pub fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
+    pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         if !self.has::<&C>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: T::borrows(),
@@ -203,7 +200,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
     }
 
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
-        self.try_get(entity)
+        self.get(entity)
     }
 }
 
