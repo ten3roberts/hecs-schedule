@@ -2,7 +2,7 @@
 name = "hecs-schedule"
 version = "0.3.0"
 edition = "2021"
-description = "Provides shedulable systems and paralell execution for hecs"
+description = "Provides shedulable systems and parallel execution for hecs"
 readme ="README.md"
 license-file = "LICENSE"
 authors = [ "Tei Roberts" ]
@@ -14,7 +14,7 @@ repository = "https://github.com/ten3roberts/hecs-schedule"
 [dependencies]
 anyhow = "1.0.51"
 atomic_refcell = "0.1.8"
-hecs = "0.7"
+hecs = { version = "0.7", features = [ "macros" ] }
 rayon = { version = "1.5.1", optional = true }
 smallvec = "1.7.0"
 thiserror = "1.0.30"

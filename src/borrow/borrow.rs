@@ -6,7 +6,7 @@ use std::{
 };
 
 /// Type alias for list of borrows
-pub type Borrows = SmallVec<[Access; 4]>;
+pub type Borrows = SmallVec<[Access; 8]>;
 
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use smallvec::{smallvec, SmallVec};
@@ -92,7 +92,7 @@ struct BorrowMarker<T> {
 
 impl<T: IntoAccess> IntoAccess for BorrowMarker<T> {
     fn access() -> Access {
-        Access::new::<T>()
+        Access::of::<T>()
     }
 }
 
@@ -143,10 +143,13 @@ impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
     }
 
     fn has<U: crate::IntoAccess>() -> bool {
-        let l = Access::new::<&T>();
-        let r = U::access();
+        Access::of::<&T>() == U::access()
+    }
 
-        l.info == r.info && !r.exclusive
+    fn has_dynamic(id: std::any::TypeId, exclusive: bool) -> bool {
+        let l = Access::of::<&T>();
+
+        l.id == id && !exclusive
     }
 }
 
@@ -156,9 +159,12 @@ impl<'a, T: 'static> ComponentBorrow for Write<'a, T> {
     }
 
     fn has<U: crate::IntoAccess>() -> bool {
-        let l = Access::new::<&mut T>();
-        let r = U::access();
+        Access::of::<&T>().id == U::access().id
+    }
 
-        l.info == r.info
+    fn has_dynamic(id: std::any::TypeId, _: bool) -> bool {
+        let l = Access::of::<&T>();
+
+        l.id == id
     }
 }

@@ -1,7 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use anyhow::{bail, ensure};
-use hecs::World;
+use hecs::{Query, World};
 use hecs_schedule::*;
 
 #[test]
@@ -33,6 +33,38 @@ fn query() {
     let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
 
     let mut query = subworld.query::<(&i32, &mut f32)>();
+    query
+        .iter()
+        .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
+
+    assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
+    let val = subworld.try_get::<i32>(entity).unwrap();
+    assert_eq!(*val, 42);
+}
+
+#[test]
+fn custom_query() {
+    let mut world = World::default();
+
+    #[derive(Query, Debug)]
+    struct Foo<'a> {
+        _a: &'a i32,
+        _b: &'a mut f32,
+    }
+
+    world.spawn((67_i32, 7.0_f32));
+    let entity = world.spawn((42_i32, 3.1415_f32));
+
+    let subworld = SubWorldRef::<(Foo, &&'static str)>::new(&world);
+
+    assert!(subworld.has_all::<(&i32, &f32)>());
+    assert!(!subworld.has_all::<(&mut i32, &f32)>());
+    assert!(subworld.has_all::<(&mut f32, &i32)>());
+    assert!(subworld.has_all::<(&&'static str, &i32)>());
+    assert!(!subworld.has_all::<(&mut &'static str, &i32)>());
+    assert!(!subworld.has_all::<(&mut f32, &i32, &u32)>());
+
+    let mut query = subworld.query::<Foo>();
     query
         .iter()
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));

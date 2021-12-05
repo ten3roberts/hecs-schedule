@@ -1,5 +1,4 @@
 use atomic_refcell::AtomicRef;
-use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
 use crate::{
@@ -64,11 +63,11 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 
     /// Query the subworld.
     /// Fails if the query items are not compatible with the subworld
-    pub fn try_query<Q: Query + Subset>(&self) -> Result<QueryBorrow<'_, Q>> {
+    pub fn try_query<Q: Query + Subset + ComponentBorrow>(&self) -> Result<QueryBorrow<'_, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::borrows(),
-                query: Q::borrows(),
+                subworld: type_name::<T>(),
+                query: type_name::<Q>(),
             });
         } else {
             Ok(self.world.query())
@@ -80,8 +79,8 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     pub fn try_query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<'_, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::borrows(),
-                query: Q::borrows(),
+                subworld: type_name::<T>(),
+                query: type_name::<Q>(),
             });
         }
 
@@ -102,8 +101,8 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         if !self.has::<&C>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::borrows(),
-                query: smallvec![Access::new::<&C>()],
+                subworld: type_name::<T>(),
+                query: type_name::<&C>(),
             });
         }
 
@@ -123,8 +122,8 @@ impl<A: Deref<Target = World> + Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
     pub fn split<U: ComponentBorrow + Subset>(&mut self) -> Result<SubWorldRaw<A, U>> {
         if !self.has_all::<U>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::borrows(),
-                query: U::borrows(),
+                subworld: type_name::<T>(),
+                query: type_name::<SubWorldRaw<A, U>>(),
             });
         }
 
@@ -177,12 +176,16 @@ impl<'a, T> From<&'a Context<'a>> for SubWorldRaw<AtomicRef<'a, World>, T> {
 impl<A, T: ComponentBorrow> ComponentBorrow for SubWorldRaw<A, T> {
     fn borrows() -> Borrows {
         let mut access = T::borrows();
-        access.push(Access::new::<&World>());
+        access.push(Access::of::<&World>());
         access
     }
 
     fn has<U: IntoAccess>() -> bool {
         T::has::<U>()
+    }
+
+    fn has_dynamic(id: std::any::TypeId, exclusive: bool) -> bool {
+        T::has_dynamic(id, exclusive)
     }
 }
 

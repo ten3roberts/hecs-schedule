@@ -3,7 +3,7 @@
 use hecs::Entity;
 use thiserror::*;
 
-use crate::{borrow::Borrows, SystemName};
+use crate::SystemName;
 
 #[doc(hidden)]
 pub type Result<T> = std::result::Result<T, Error>;
@@ -15,7 +15,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("Attempt to execute query: {query:?} on incompatible subworld: {subworld:?}")]
     #[doc(hidden)]
-    IncompatibleSubworld { subworld: Borrows, query: Borrows },
+    IncompatibleSubworld {
+        subworld: &'static str,
+        query: &'static str,
+    },
 
     #[error("Entity: {0:?} does not exist in world")]
     #[doc(hidden)]
