@@ -18,11 +18,8 @@ pub struct Batch {
 }
 
 impl Batch {
-    fn push<Args, Ret, S>(&mut self, system: S)
-    where
-        S: 'static + System<Args, Ret> + Send + Sync,
-    {
-        self.systems.push(DynamicSystem::new(system))
+    fn push(&mut self, system: DynamicSystem) {
+        self.systems.push(system)
     }
 }
 
@@ -44,6 +41,7 @@ impl DerefMut for Batch {
 #[doc(hidden)]
 pub struct DynamicSystem {
     func: Box<dyn FnMut(&Context) -> Result<()> + Send + Sync>,
+    borrows: Borrows,
 }
 
 #[doc(hidden)]
@@ -52,8 +50,10 @@ impl DynamicSystem {
     where
         S: 'static + System<Args, Ret> + Send + Sync,
     {
+        let borrows = S::borrows();
         Self {
             func: Box::new(move |context| system.execute(context)),
+            borrows,
         }
     }
 
@@ -128,21 +128,41 @@ impl ScheduleBuilder {
     where
         S: 'static + System<Args, Ret> + Send + Sync,
     {
-        // Check borrow
-        let borrows = S::borrows();
+        self.add_internal(DynamicSystem::new(system));
+        self
+    }
 
-        if !self.check_compatible(&borrows) {
+    fn add_internal(&mut self, system: DynamicSystem) {
+        // Check borrow
+        let borrows = &system.borrows;
+
+        if !self.check_compatible(borrows) {
             // Push and create a new batch
-            self.push_batch()
+            self.finalize_batch();
         }
 
         self.add_borrows(borrows);
         self.current_batch.push(system);
+    }
+
+    /// Append all system from `other` into self, leaving `other` empty.
+    /// This allows constructing smaller schedules in different modules and then
+    /// joining them together. Work will be paralellized between the two
+    /// schedules.
+    pub fn append(&mut self, other: &mut ScheduleBuilder) -> &mut Self {
+        other.finalize_batch();
+
+        other.batches.drain(..).for_each(|mut batch| {
+            batch
+                .systems
+                .drain(..)
+                .for_each(|system| self.add_internal(system))
+        });
 
         self
     }
 
-    fn push_batch(&mut self) {
+    fn finalize_batch(&mut self) {
         let batch = std::mem::replace(&mut self.current_batch, Batch::default());
 
         self.batches.push(batch);
@@ -150,9 +170,9 @@ impl ScheduleBuilder {
         self.current_borrows.clear()
     }
 
-    fn add_borrows(&mut self, borrows: Borrows) {
+    fn add_borrows(&mut self, borrows: &Borrows) {
         self.current_borrows
-            .extend(borrows.into_iter().map(|val| (val.id(), val)))
+            .extend(borrows.into_iter().map(|val| (val.id(), val.to_owned())))
     }
 
     /// Returns true if no borrows conflict with the current ones
@@ -171,7 +191,7 @@ impl ScheduleBuilder {
     /// Moves the current batches into a schedule
     pub fn build(&mut self) -> Schedule {
         // Push the current batch
-        self.push_batch();
+        self.finalize_batch();
 
         let builder = std::mem::replace(self, ScheduleBuilder::default());
 

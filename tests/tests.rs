@@ -143,10 +143,12 @@ fn execute_par() {
         assert_eq!(*val, 5);
     };
 
+    let mut other_schedule = Schedule::builder();
+    other_schedule.add_system(observe_other).add_system(mutate);
+
     let mut schedule = Schedule::builder()
         .add_system(observe_before)
-        .add_system(observe_other)
-        .add_system(mutate)
+        .append(&mut other_schedule)
         .add_system(observe_after)
         .build();
 
