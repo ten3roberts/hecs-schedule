@@ -8,7 +8,9 @@ use crate::{borrow::Borrows, SystemName};
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
-/// Exported error types
+/// Exported error types.
+/// Some of these errors map the hecs errors but provide better context such as
+/// the entity.
 pub enum Error {
     #[error("Attempt to execute query: {query:?} on incompatible subworld: {subworld:?}")]
     #[doc(hidden)]
