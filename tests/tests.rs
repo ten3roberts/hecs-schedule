@@ -1,3 +1,5 @@
+use std::{thread::sleep, time::Duration};
+
 use anyhow::{bail, ensure};
 use hecs::World;
 use hecs_schedule::*;
@@ -102,7 +104,7 @@ fn test_schedule() {
     });
 
     let mut schedule = schedule.build();
-    schedule.execute((&mut world, &mut foo)).unwrap();
+    schedule.execute_seq((&mut world, &mut foo)).unwrap();
 
     assert_eq!(foo, Foo { val: 56 });
 }
@@ -114,5 +116,42 @@ fn schedule_fail() {
         .add_system(|| -> anyhow::Result<()> { bail!("Dummy Error") })
         .build();
 
-    schedule.execute(()).unwrap();
+    schedule.execute_seq(()).unwrap();
+}
+
+#[test]
+fn execute_par() {
+    let mut val = 3;
+    let mut other_val = 3.0;
+    let observe_before = |val: Borrow<i32>| {
+        sleep(Duration::from_millis(100));
+        assert_eq!(*val, 3)
+    };
+
+    // Should execute at the same time as ^
+    let observe_other = |val: Borrow<f64>| {
+        sleep(Duration::from_millis(100));
+        assert_eq!(*val, 3.0);
+    };
+
+    let mutate = |mut val: BorrowMut<i32>| {
+        sleep(Duration::from_millis(20));
+        *val = 5;
+    };
+
+    let observe_after = |val: Borrow<i32>| {
+        assert_eq!(*val, 5);
+    };
+
+    let mut schedule = Schedule::builder()
+        .add_system(observe_before)
+        .add_system(observe_other)
+        .add_system(mutate)
+        .add_system(observe_after)
+        .build();
+
+    schedule
+        .execute((&mut val, &mut other_val))
+        .map_err(|e| eprintln!("Error {}", e))
+        .expect("Failed to execute schedule");
 }

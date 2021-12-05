@@ -9,7 +9,9 @@ pub type Borrows = SmallVec<[Access; 4]>;
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use smallvec::{smallvec, SmallVec};
 
-use crate::{Access, ComponentBorrow, Context, Error, Result};
+use crate::{Access, Context, Error, Result};
+
+use super::ComponentBorrow;
 
 /// Wrapper type for an immutably borrowed value from schedule context
 #[repr(transparent)]
@@ -120,7 +122,7 @@ impl<'a, T: 'static> ContextBorrow<'a> for BorrowMut<'a, T> {
 }
 
 impl<'a, T: 'static> ComponentBorrow for Borrow<'a, T> {
-    fn borrows() -> crate::Borrows {
+    fn borrows() -> Borrows {
         smallvec![Access::new::<&T>()]
     }
 
@@ -133,7 +135,7 @@ impl<'a, T: 'static> ComponentBorrow for Borrow<'a, T> {
 }
 
 impl<'a, T: 'static> ComponentBorrow for BorrowMut<'a, T> {
-    fn borrows() -> crate::Borrows {
+    fn borrows() -> Borrows {
         smallvec![Access::new::<&mut T>()]
     }
 

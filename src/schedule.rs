@@ -6,7 +6,10 @@ use std::{
 
 use smallvec::SmallVec;
 
-use crate::{Access, Borrows, Context, IntoData, Result, System};
+#[cfg(feature = "parallel")]
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+
+use crate::{borrow::Borrows, Access, Context, IntoData, Result, System};
 
 #[derive(Default)]
 /// Represents a unit of work with compatible borrows.
@@ -17,7 +20,7 @@ pub struct Batch {
 impl Batch {
     pub fn push<Args, Ret, S>(&mut self, system: S)
     where
-        S: 'static + System<Args, Ret>,
+        S: 'static + System<Args, Ret> + Send + Sync,
     {
         self.systems.push(DynamicSystem::new(system))
     }
@@ -40,14 +43,14 @@ impl DerefMut for Batch {
 // Type erased boxed system
 #[doc(hidden)]
 pub struct DynamicSystem {
-    func: Box<dyn FnMut(&Context) -> Result<()>>,
+    func: Box<dyn FnMut(&Context) -> Result<()> + Send + Sync>,
 }
 
 #[doc(hidden)]
 impl DynamicSystem {
     fn new<S, Args, Ret>(mut system: S) -> Self
     where
-        S: 'static + System<Args, Ret>,
+        S: 'static + System<Args, Ret> + Send + Sync,
     {
         Self {
             func: Box::new(move |context| system.execute(context)),
@@ -74,9 +77,9 @@ impl Schedule {
         ScheduleBuilder::default()
     }
 
-    /// Executes the systems inside the schedule  using the provided data, which
+    /// Executes the systems inside the schedule sequentially using the provided data, which
     /// is a tuple of mutable references. Returns Err if any system fails
-    pub fn execute<D: IntoData>(&mut self, data: D) -> Result<()> {
+    pub fn execute_seq<D: IntoData>(&mut self, data: D) -> Result<()> {
         let data = unsafe { data.into_data() };
 
         let context = Context::new(&data);
@@ -84,6 +87,19 @@ impl Schedule {
         self.batches.iter_mut().try_for_each(|batch| {
             batch
                 .iter_mut()
+                .try_for_each(|system| system.execute(&context))
+        })
+    }
+
+    #[cfg(feature = "parallel")]
+    pub fn execute<D: IntoData + Send + Sync>(&mut self, data: D) -> Result<()> {
+        let data = unsafe { data.into_data() };
+
+        let context = Context::new(&data);
+
+        self.batches.iter_mut().try_for_each(|batch| {
+            batch
+                .par_iter_mut()
                 .try_for_each(|system| system.execute(&context))
         })
     }
@@ -103,7 +119,7 @@ impl ScheduleBuilder {
 
     pub fn add_system<Args, Ret, S>(&mut self, system: S) -> &mut Self
     where
-        S: 'static + System<Args, Ret>,
+        S: 'static + System<Args, Ret> + Send + Sync,
     {
         // Check borrow
         let borrows = S::borrows();
@@ -138,7 +154,7 @@ impl ScheduleBuilder {
             // Type is already borrowd
             if let Some(curr) = self.current_borrows.get(&borrow.id()) {
                 // Already exclusively borroed or new borrow is exlcusive
-                return !curr.exclusive() && (borrow.exclusive());
+                return !curr.exclusive() && !(borrow.exclusive());
             }
         }
 

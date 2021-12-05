@@ -2,7 +2,12 @@ use atomic_refcell::AtomicRef;
 use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
-use crate::{access::*, Borrows, ComponentBorrow, Context, ContextBorrow, Error, Result, View};
+use crate::Context;
+use crate::{
+    access::*,
+    borrow::{Borrows, ComponentBorrow, ContextBorrow},
+    Error, Result, View,
+};
 use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, World};
 
 /// Type alias for a subworld referencing the world by an atomic ref. Most

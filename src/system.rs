@@ -1,7 +1,8 @@
 use std::{any::type_name, borrow::Cow};
 
 use crate::{
-    borrow::Borrows, borrow::ContextBorrow, borrow::IntoBorrow, ComponentBorrow, Context, Result,
+    borrow::{Borrows, ComponentBorrow, ContextBorrow, IntoBorrow},
+    Context, Result,
 };
 
 /// System name alias

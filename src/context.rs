@@ -2,13 +2,17 @@ use std::{any::TypeId, marker::PhantomData, ptr::NonNull};
 
 use atomic_refcell::AtomicRefCell;
 
-use crate::{ContextBorrow, Error, IntoAccess, Result};
+use crate::{borrow::ContextBorrow, Error, IntoAccess, Result};
 
 /// Holds all data necessary for the execution of the world.
 /// The data is held by references, and needs to outlive the context itself
 pub struct Context<'a> {
     data: &'a dyn Data,
 }
+
+// Safe since Send + Sync is required for impl of IntoData
+unsafe impl Send for Context<'_> {}
+unsafe impl Sync for Context<'_> {}
 
 impl<'a> Context<'a> {
     /// Construct a new context from the tuple of references `data`
@@ -26,22 +30,24 @@ impl<'a> Context<'a> {
 
     pub fn cell<T: IntoAccess>(&'a self) -> Result<&AtomicRefCell<NonNull<u8>>> {
         let access = T::access();
-        unsafe { self.data.get(access.id()) }.ok_or_else(|| Error::MissingData(access.name()))
+        self.data
+            .get(access.id())
+            .ok_or_else(|| Error::MissingData(access.name()))
     }
 }
 
-pub trait Data {
-    unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
+pub unsafe trait Data {
+    fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
-impl Data for () {
-    unsafe fn get<'a>(&'a self, _: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+unsafe impl Data for () {
+    fn get<'a>(&'a self, _: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
         None
     }
 }
 
-impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
-    unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+unsafe impl<A: 'static + Send + Sync> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
+    fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
         if ty == TypeId::of::<A>() {
             Some(&self.0)
         } else {
@@ -50,7 +56,7 @@ impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
     }
 }
 
-pub trait IntoData {
+pub trait IntoData: Send + Sync {
     type Target: Data;
     unsafe fn into_data(self) -> Self::Target;
 }
@@ -86,8 +92,8 @@ macro_rules! tuple_impls {
     ([($idx:tt, $typ:ident); $( ($nidx:tt, $ntyp:ident); )*]) => {
         impl<$typ, $( $ntyp ), *> IntoData for (&mut $typ, $(&mut $ntyp,) *)
             where
-                $typ: 'static,
-                $($ntyp: 'static), *
+                $typ: 'static + Send + Sync,
+                $($ntyp: 'static + Send + Sync), *
         {
             type Target = ((AtomicRefCell<NonNull<u8>>, PhantomData<$typ>), $( (AtomicRefCell<NonNull<u8>>, PhantomData<$ntyp>), )*);
 
@@ -100,13 +106,13 @@ macro_rules! tuple_impls {
 
         }
 
-        impl<$typ, $( $ntyp ), *> Data for ((AtomicRefCell<NonNull<u8>>, PhantomData<$typ>), $( (AtomicRefCell<NonNull<u8>>, PhantomData<$ntyp>), )*)
+        unsafe impl<$typ, $( $ntyp ), *> Data for ((AtomicRefCell<NonNull<u8>>, PhantomData<$typ>), $( (AtomicRefCell<NonNull<u8>>, PhantomData<$ntyp>), )*)
             where
                 $typ: 'static,
                 $($ntyp: 'static), *
 
         {
-            unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+            fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
                 if ty == TypeId::of::<$typ>() {
                     Some(&self.$idx.0)
                 } $(else if ty == TypeId::of::<$ntyp>() {

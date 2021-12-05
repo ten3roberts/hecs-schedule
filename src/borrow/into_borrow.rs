@@ -1,7 +1,9 @@
 ///! This module works around the lifetimes for borrow when GAT isn't available
 use std::marker::PhantomData;
 
-use crate::{Borrow, BorrowMut, Context, ContextBorrow, Result, SubWorld};
+use crate::{Borrow, BorrowMut, Context, Result, SubWorld};
+
+use super::ContextBorrow;
 
 pub struct Borrower<T>(PhantomData<T>);
 

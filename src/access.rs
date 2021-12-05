@@ -2,7 +2,7 @@ use hecs::TypeInfo;
 use smallvec::smallvec;
 use std::any::type_name;
 
-use crate::{Borrows, ComponentBorrow};
+use crate::borrow::{Borrows, ComponentBorrow};
 
 #[derive(Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {

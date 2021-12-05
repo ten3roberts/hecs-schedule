@@ -12,5 +12,10 @@ license = "MIT"
 anyhow = "1.0.51"
 atomic_refcell = "0.1.8"
 hecs = "0.7"
+rayon = { version = "1.5.1", optional = true }
 smallvec = "1.7.0"
 thiserror = "1.0.30"
+
+[features]
+default = [ "parallel" ]
+parallel = [ "rayon" ]

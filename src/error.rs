@@ -1,6 +1,6 @@
 use thiserror::*;
 
-use crate::{Borrows, SystemName};
+use crate::{borrow::Borrows, SystemName};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -17,10 +17,10 @@ pub enum Error {
     #[error("Context does not have data of type {0:?}")]
     MissingData(&'static str),
 
-    #[error("Data of type {0:?} is already mutable borrowd")]
+    #[error("Data of type {0:?} is already mutable borrowed")]
     Borrow(&'static str),
 
-    #[error("Data of type {0:?} is already borrowd")]
+    #[error("Data of type {0:?} is already borrowed")]
     BorrowMut(&'static str),
 
     #[error("Failed to execute system {0:?}")]
