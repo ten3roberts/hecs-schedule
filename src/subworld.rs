@@ -2,8 +2,8 @@ use atomic_refcell::AtomicRef;
 use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
-use crate::{access::*, Context, ContextBorrow, Error, Result, View};
-use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, TypeInfo, World};
+use crate::{access::*, Borrows, ComponentBorrow, Context, ContextBorrow, Error, Result, View};
+use hecs::{Component, Entity, Query, QueryBorrow, QueryOne, World};
 
 /// Type alias for a subworld referencing the world by an atomic ref. Most
 /// common for schedules
@@ -27,7 +27,7 @@ impl<A, T> SubWorldRaw<A, T> {
     }
 }
 
-impl<A: Deref<Target = World>, T: ComponentAccess> SubWorldRaw<A, T> {
+impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Returns true if the subworld has access the borrow of T
     pub fn has<U: IntoAccess>(&self) -> bool {
         T::has::<U>()
@@ -54,8 +54,8 @@ impl<A: Deref<Target = World>, T: ComponentAccess> SubWorldRaw<A, T> {
     pub fn try_query<'w, Q: Query + Subset>(&'w self) -> Result<QueryBorrow<'w, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::accesses(),
-                query: Q::accesses(),
+                subworld: T::borrows(),
+                query: Q::borrows(),
             });
         } else {
             Ok(self.world.query())
@@ -67,8 +67,8 @@ impl<A: Deref<Target = World>, T: ComponentAccess> SubWorldRaw<A, T> {
     pub fn query_one<'w, Q: Query + Subset>(&'w self, entity: Entity) -> Result<QueryOne<'w, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::accesses(),
-                query: Q::accesses(),
+                subworld: T::borrows(),
+                query: Q::borrows(),
             });
         }
 
@@ -86,12 +86,8 @@ impl<A: Deref<Target = World>, T: ComponentAccess> SubWorldRaw<A, T> {
     pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         if !self.has::<&C>() {
             return Err(Error::IncompatibleSubworld {
-                subworld: T::accesses(),
-                query: smallvec![Access {
-                    info: TypeInfo::of::<C>(),
-                    exclusive: false,
-                    name: type_name::<C>(),
-                }],
+                subworld: T::borrows(),
+                query: smallvec![Access::new::<&C>()],
             });
         }
 
@@ -102,7 +98,7 @@ impl<A: Deref<Target = World>, T: ComponentAccess> SubWorldRaw<A, T> {
 impl<'a, A, T> View<'a> for SubWorldRaw<A, T>
 where
     A: Deref<Target = World>,
-    T: ComponentAccess,
+    T: ComponentBorrow,
 {
     type Superset = A;
 
@@ -135,5 +131,17 @@ impl<'a, T> From<&'a Context<'a>> for SubWorldRaw<AtomicRef<'a, World>, T> {
         let val = AtomicRef::map(borrow, |val| unsafe { val.cast().as_ref() });
 
         Self::new(val)
+    }
+}
+
+impl<A, T: ComponentBorrow> ComponentBorrow for SubWorldRaw<A, T> {
+    fn borrows() -> Borrows {
+        let mut access = T::borrows();
+        access.push(Access::new::<&World>());
+        access
+    }
+
+    fn has<U: IntoAccess>() -> bool {
+        T::has::<U>()
     }
 }

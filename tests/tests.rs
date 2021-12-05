@@ -1,3 +1,4 @@
+use anyhow::{bail, ensure};
 use hecs::World;
 use hecs_schedule::*;
 
@@ -71,4 +72,47 @@ fn commandbuffer() {
         .iter()
         .map(|(_, val)| val)
         .eq([(&42, &7.0)]))
+}
+
+#[test]
+fn test_schedule() {
+    let mut world = World::default();
+
+    let a = world.spawn((789,));
+
+    let mut schedule = Schedule::builder();
+
+    #[derive(Default, Debug, Clone, Copy, PartialEq)]
+    struct Foo {
+        val: i32,
+    }
+
+    let mut foo = Foo { val: 42 };
+
+    let system = move |w: SubWorld<&i32>| -> anyhow::Result<()> {
+        ensure!(*w.get::<i32>(a)? == 789, "Entity did not match");
+
+        Ok(())
+    };
+
+    schedule.add_system(system);
+
+    schedule.add_system(|mut val: BorrowMut<Foo>| {
+        val.val = 56;
+    });
+
+    let mut schedule = schedule.build();
+    schedule.execute((&mut world, &mut foo)).unwrap();
+
+    assert_eq!(foo, Foo { val: 56 });
+}
+
+#[test]
+#[should_panic]
+fn schedule_fail() {
+    let mut schedule = Schedule::builder()
+        .add_system(|| -> anyhow::Result<()> { bail!("Dummy Error") })
+        .build();
+
+    schedule.execute(()).unwrap();
 }

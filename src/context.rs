@@ -34,6 +34,12 @@ pub trait Data {
     unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
+impl Data for () {
+    unsafe fn get<'a>(&'a self, _: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+        None
+    }
+}
+
 impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
     unsafe fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
         if ty == TypeId::of::<A>() {
@@ -47,6 +53,14 @@ impl<A: 'static> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
 pub trait IntoData {
     type Target: Data;
     unsafe fn into_data(self) -> Self::Target;
+}
+
+impl IntoData for () {
+    type Target = ();
+
+    unsafe fn into_data(self) -> Self::Target {
+        ()
+    }
 }
 
 macro_rules! tuple_impls {

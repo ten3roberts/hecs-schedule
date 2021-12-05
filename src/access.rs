@@ -1,6 +1,8 @@
 use hecs::TypeInfo;
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 use std::any::type_name;
+
+use crate::{Borrows, ComponentBorrow};
 
 #[derive(Copy, Clone, PartialOrd, Ord, Eq, PartialEq)]
 pub struct Access {
@@ -16,11 +18,14 @@ impl std::fmt::Debug for Access {
         } else {
             write!(f, "{}", self.name)
         }
-        // f.debug_struct("Access").field("name", &self.name).field("info", &self.info).field("exclusive", &self.exclusive).finish()
     }
 }
 
 impl Access {
+    pub fn new<T: IntoAccess>() -> Self {
+        T::access()
+    }
+
     /// Get a reference to the access's id.
     #[inline]
     pub fn info(&self) -> TypeInfo {
@@ -84,26 +89,18 @@ impl<T: 'static> IntoAccess for &mut T {
 /// Marker type for a subworld which has access to the whole world
 pub struct AllAccess;
 
-/// Trait for a set of component accesses
-pub trait ComponentAccess {
-    /// Returns a list of all component accesses
-    fn accesses() -> SmallVec<[Access; 8]>;
-    /// Returns true if U exists in Self
-    fn has<U: IntoAccess>() -> bool;
-}
-
-pub trait Subset: ComponentAccess {
-    fn is_subset<U: ComponentAccess>() -> bool;
+pub trait Subset: ComponentBorrow {
+    fn is_subset<U: ComponentBorrow>() -> bool;
 }
 
 impl<A: IntoAccess> Subset for A {
-    fn is_subset<U: ComponentAccess>() -> bool {
+    fn is_subset<U: ComponentBorrow>() -> bool {
         U::has::<A>()
     }
 }
 
-impl<A: IntoAccess> ComponentAccess for A {
-    fn accesses() -> SmallVec<[Access; 8]> {
+impl<A: IntoAccess> ComponentBorrow for A {
+    fn borrows() -> Borrows {
         smallvec![A::access()]
     }
     fn has<U: IntoAccess>() -> bool {
@@ -111,8 +108,8 @@ impl<A: IntoAccess> ComponentAccess for A {
     }
 }
 
-impl ComponentAccess for AllAccess {
-    fn accesses() -> SmallVec<[Access; 8]> {
+impl ComponentBorrow for AllAccess {
+    fn borrows() -> Borrows {
         smallvec![]
     }
 
@@ -121,27 +118,3 @@ impl ComponentAccess for AllAccess {
         true
     }
 }
-
-/// Implement for tuples
-macro_rules! tuple_impl {
-    ($($name: ident), *) => {
-        impl<$($name: IntoAccess,)*> ComponentAccess for ($($name,) *) {
-            fn accesses() -> SmallVec<[Access; 8]> {
-                smallvec![$($name::access()), *]
-            }
-
-            fn has<U: IntoAccess>() -> bool {
-                $(($name::compatible::<U>())) || *
-            }
-        }
-
-        impl<$($name: IntoAccess,)*> Subset for ($($name,) *) {
-            fn is_subset<U: ComponentAccess>() -> bool {
-                $((U::has::<$name>())) && *
-            }
-        }
-    };
-
-}
-
-impl_for_tuples!(tuple_impl);

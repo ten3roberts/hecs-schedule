@@ -4,13 +4,23 @@ use std::{
     ptr::NonNull,
 };
 
+pub type Borrows = SmallVec<[Access; 4]>;
+
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
+use smallvec::{smallvec, SmallVec};
 
-use crate::{Context, Error, Result};
+use crate::{Access, ComponentBorrow, Context, Error, Result};
 
-#[repr(transparent)]
 /// Wrapper type for an immutably borrowed value from schedule context
+#[repr(transparent)]
+#[derive(Debug)]
 pub struct Borrow<'a, T>(pub(crate) AtomicRef<'a, T>);
+
+impl<'a, T> Clone for Borrow<'a, T> {
+    fn clone(&self) -> Self {
+        Self(AtomicRef::<'a, T>::clone(&self.0))
+    }
+}
 
 impl<'a, T> Deref for Borrow<'a, T> {
     type Target = T;
@@ -106,5 +116,31 @@ impl<'a, T: 'static> ContextBorrow<'a> for BorrowMut<'a, T> {
 
     fn borrow(context: &'a Context) -> Result<Self::Target> {
         BorrowMut::try_from_untyped(context.cell::<&mut T>()?)
+    }
+}
+
+impl<'a, T: 'static> ComponentBorrow for Borrow<'a, T> {
+    fn borrows() -> crate::Borrows {
+        smallvec![Access::new::<&T>()]
+    }
+
+    fn has<U: crate::IntoAccess>() -> bool {
+        let l = Access::new::<&T>();
+        let r = U::access();
+
+        l.info == r.info && !r.exclusive
+    }
+}
+
+impl<'a, T: 'static> ComponentBorrow for BorrowMut<'a, T> {
+    fn borrows() -> crate::Borrows {
+        smallvec![Access::new::<&mut T>()]
+    }
+
+    fn has<U: crate::IntoAccess>() -> bool {
+        let l = Access::new::<&mut T>();
+        let r = U::access();
+
+        l.info == r.info
     }
 }

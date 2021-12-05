@@ -1,70 +1,130 @@
 use std::{any::type_name, borrow::Cow};
 
-use crate::{Context, ContextBorrow, Error, Result};
+use crate::{
+    borrow::Borrows, borrow::ContextBorrow, borrow::IntoBorrow, ComponentBorrow, Context, Result,
+};
 
 /// System name alias
 pub type SystemName = Cow<'static, str>;
 
 /// Trait which defines any function or type that can operate on a world or
 /// other context.
-pub trait System<'a, Args, Ret> {
+pub trait System<Args, Ret> {
     /// Executes the by borrowing from context
-    fn execute(&mut self, context: &'a Context) -> Result<()>;
+    fn execute(&mut self, context: &Context) -> Result<()>;
     /// Returns the system name. Used for debug purposes
     fn name(&self) -> SystemName;
+
+    /// Returns which data will be accessed
+    fn borrows() -> Borrows;
 }
 
 macro_rules! tuple_impl {
     ($($name: ident), *) => {
-        impl<'a, 'b, Func, $($name,)  *> System<'a, ($($name,)*), ()> for Func
+        impl<Func, $($name,)  *> System<($($name,)*), ()> for Func
         where
-            Func: FnMut($($name),*) -> (),
-            $($name: ContextBorrow<'a, Target = $name>,)*
+            for<'a, 'b> &'b mut Func:
+                FnMut($($name,)*) -> () +
+                FnMut($(<$name::Borrow as ContextBorrow<'a>>::Target),*) -> (),
+                $($name: IntoBorrow + ComponentBorrow,)*
         {
-            fn execute(&mut self, context: &'a Context) -> Result<()> {
-                (self)($($name::borrow(context)?), *);
+            fn execute(&mut self, context: &Context) -> Result<()> {
+                let mut func = self;
+                (&mut func)($($name::Borrow::borrow(context)?), *);
                 Ok(())
             }
 
             fn name(&self) -> SystemName {
-                format!("System<{:?}>", type_name::<A>(),).into()
+                format!("System<{:?}>", ($(type_name::<$name>(),)* )).into()
+            }
+
+            fn borrows() -> Borrows {
+                ([].iter()
+                    $(.chain($name::borrows().iter())) *).cloned()
+                .collect()
             }
         }
 
-        impl<'a, 'b, Err, Func, $($name,)  *> System<'a, ($($name,)*), std::result::Result<(), Err>> for Func
+        impl<Err, Func, $($name,) *> System<($($name,)*), std::result::Result<(), Err>> for Func
         where
             Err: Into<anyhow::Error>,
-            Func: FnMut($($name),*) -> std::result::Result<(), Err>,
-            $($name: ContextBorrow<'a, Target = $name>,)*
+            for<'a, 'b> &'b mut Func:
+                FnMut($($name,)*) -> std::result::Result<(), Err> +
+                FnMut($(<$name::Borrow as ContextBorrow<'a>>::Target),*) -> std::result::Result<(), Err>,
+                $($name: IntoBorrow + ComponentBorrow,)*
         {
-            fn execute(&mut self, context: &'a Context) -> Result<()> {
-                (self)($($name::borrow(context)?), *)
-                    .map_err(|e| Error::SystemError(self.name(), e.into()))
+            fn execute(&mut self, context: &Context) -> Result<()> {
+                let mut func = self;
+                match (&mut func)($($name::Borrow::borrow(context)?), *) {
+                    Ok(()) => Ok(()),
+                    Err(e) => Err(crate::Error::SystemError(<Self as System<($($name,)*), std::result::Result<(), Err>>>::name(func), e.into())),
+                }
             }
 
             fn name(&self) -> SystemName {
-                format!("System<{:?}>", type_name::<A>(),).into()
+                format!("System<{:?}> -> Result<(), {:?}>", ($(type_name::<$name>(),)* ), type_name::<Err>()).into()
+            }
+
+            fn borrows() -> Borrows {
+                ([].iter()
+                    $(.chain($name::borrows().iter())) *).cloned()
+                .collect()
             }
         }
     };
 }
 
+impl<F: FnMut()> System<(), ()> for F {
+    fn execute(&mut self, _: &Context) -> Result<()> {
+        (self)();
+        Ok(())
+    }
+
+    fn name(&self) -> SystemName {
+        "System<()>".into()
+    }
+
+    fn borrows() -> Borrows {
+        Borrows::default()
+    }
+}
+
+impl<Err: Into<anyhow::Error>, F: FnMut() -> std::result::Result<(), Err>>
+    System<(), std::result::Result<(), Err>> for F
+{
+    fn execute(&mut self, _: &Context) -> Result<()> {
+        (self)().map_err(|e| crate::Error::SystemError(self.name(), e.into()))
+    }
+
+    fn name(&self) -> SystemName {
+        "System<()>".into()
+    }
+
+    fn borrows() -> Borrows {
+        Borrows::default()
+    }
+}
 tuple_impl!(A);
 impl_for_tuples!(tuple_impl);
 
 #[cfg(test)]
 mod tests {
-    use crate::{Borrow, Context, IntoData, SubWorld, System};
-    use anyhow::ensure;
+    use crate::{system::System, Borrow, Context, IntoData, SubWorld};
     use hecs::World;
 
-    use super::Result;
+    use anyhow::{ensure, Result};
+
+    fn count_system(val: Borrow<i32>) {
+        assert_eq!(*val, 6);
+    }
 
     #[test]
     fn simple_system() {
         struct App {
             name: &'static str,
         }
+
+        let mut val = 6_i32;
 
         let mut app = App {
             name: "hecs-schedule",
@@ -76,11 +136,12 @@ mod tests {
         let b = world.spawn(("b", 42));
         let c = world.spawn(("c", 8));
 
-        let data = unsafe { (&mut world, &mut app).into_data() };
+        let data = unsafe { (&mut world, &mut app, &mut val).into_data() };
 
         let context = Context::new(&data);
 
-        let mut count_system = |w: SubWorld<&i32>| assert_eq!(w.query::<&i32>().iter().count(), 3);
+        let mut count_closure = |w: SubWorld<&i32>| assert_eq!(w.query::<&i32>().iter().count(), 3);
+        let mut foo = |_: SubWorld<&i32>| {};
         let mut name_query_system = |w: SubWorld<&String>| -> Result<()> {
             let name = w.get::<String>(a)?;
             eprintln!("Name: {:?}", *name);
@@ -118,6 +179,8 @@ mod tests {
         };
 
         count_system.execute(&context).unwrap();
+        foo.execute(&context).unwrap();
+        count_closure.execute(&context).unwrap();
         assert!(name_query_system.execute(&context).is_err());
         name_check_system.execute(&context).unwrap();
         rename_system.execute(&context).unwrap();

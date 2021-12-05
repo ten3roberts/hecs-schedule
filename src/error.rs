@@ -1,17 +1,13 @@
-use smallvec::SmallVec;
 use thiserror::*;
 
-use crate::{Access, SystemName};
+use crate::{Borrows, SystemName};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Attempt to execute query: {query:?} on incompatible subworld: {subworld:?}")]
-    IncompatibleSubworld {
-        subworld: SmallVec<[Access; 8]>,
-        query: SmallVec<[Access; 8]>,
-    },
+    IncompatibleSubworld { subworld: Borrows, query: Borrows },
 
     #[error("Entity: {0:?} does not exist in world")]
     NoSuchEntity(hecs::Entity),
