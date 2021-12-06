@@ -94,9 +94,6 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 
     /// Get a single component from the world.
     ///
-    /// If a mutable borrow is desired, use [`Self::query_one`] since the world is
-    /// only immutably borrowed.
-    ///
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
     pub fn get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         if !self.has::<&C>() {
@@ -107,6 +104,26 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
         }
 
         match self.world.get(entity) {
+            Ok(val) => Ok(val),
+            Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
+            Err(hecs::ComponentError::MissingComponent(name)) => {
+                Err(Error::MissingComponent(entity, name))
+            }
+        }
+    }
+
+    /// Get a single component from the world.
+    ///
+    /// Wraps the hecs::NoSuchEntity error and provides the entity id
+    pub fn get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
+        if !self.has::<&C>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: type_name::<T>(),
+                query: type_name::<&C>(),
+            });
+        }
+
+        match self.world.get_mut(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
@@ -216,6 +233,11 @@ pub trait GenericWorld {
     /// Returns the contextual result since hecs-schedule is required to be imported
     /// anyway
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>>;
+
+    /// Get a single component for an entity
+    /// Returns the contextual result since hecs-schedule is required to be imported
+    /// anyway
+    fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>>;
 }
 
 impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
@@ -229,6 +251,10 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
 
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         self.get(entity)
+    }
+
+    fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
+        self.get_mut(entity)
     }
 }
 
@@ -246,6 +272,16 @@ impl GenericWorld for World {
 
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
         match self.get(entity) {
+            Ok(val) => Ok(val),
+            Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
+            Err(hecs::ComponentError::MissingComponent(name)) => {
+                Err(Error::MissingComponent(entity, name))
+            }
+        }
+    }
+
+    fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
+        match self.get_mut(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
