@@ -64,6 +64,10 @@ fn custom_query() {
     assert!(!subworld.has_all::<(&mut &'static str, &i32)>());
     assert!(!subworld.has_all::<(&mut f32, &i32, &u32)>());
 
+    let mut query = subworld.try_query_one::<&i32>(entity).unwrap();
+    let val = query.get().unwrap();
+    assert_eq!(*val, 42);
+
     let mut query = subworld.query::<Foo>();
     query
         .iter()

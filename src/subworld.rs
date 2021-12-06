@@ -42,7 +42,7 @@ impl<A, T> SubWorldRaw<A, T> {
     }
 }
 
-impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
+impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Returns true if the subworld can access the borrow of T
     pub fn has<U: IntoAccess>(&self) -> bool {
         T::has::<U>()
@@ -76,7 +76,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 
     /// Query the subworld for a single entity.
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
-    pub fn try_query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<'_, Q>> {
+    pub fn try_query_one<Q: Query + Subset>(&'w self, entity: Entity) -> Result<QueryOne<'w, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: type_name::<T>(),

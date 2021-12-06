@@ -106,7 +106,7 @@
 //!
 //! ```
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 #[macro_use]
 mod macros;
 mod access;

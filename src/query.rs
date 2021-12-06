@@ -21,7 +21,7 @@ impl<'a, Q: Query> QueryOne<'a, Q> {
     /// Panics if called more than once or if it would construct a borrow that clashes with another
     /// pre-existing borrow.
     // Note that this uses self's lifetime, not 'a, for soundness.
-    pub fn get(&'a mut self) -> Result<QueryItem<'a, Q>> {
+    pub fn get(&mut self) -> Result<QueryItem<Q>> {
         match self.query.get() {
             Some(val) => Ok(val),
             None => Err(Error::UnsatisfiedQuery(self.entity, type_name::<Q>())),
