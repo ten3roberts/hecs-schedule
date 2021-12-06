@@ -27,8 +27,8 @@ macro_rules! tuple_impl {
         impl<Func, $($name,)  *> System<($($name,)*), ()> for Func
         where
             for<'a, 'b> &'b mut Func:
-                FnMut($($name,)*) -> () +
-                FnMut($(<$name::Borrow as ContextBorrow<'a>>::Target),*) -> (),
+                FnMut($($name,)*) +
+                FnMut($(<$name::Borrow as ContextBorrow<'a>>::Target),*),
                 $($name: IntoBorrow + ComponentBorrow,)*
         {
             fn execute(&mut self, context: &Context) -> Result<()> {

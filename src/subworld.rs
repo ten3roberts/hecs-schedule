@@ -119,7 +119,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
 impl<A: Deref<Target = World> + Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Splits the subworld further into a compatible subworld. Fails if not
     /// compatible
-    pub fn split<U: ComponentBorrow + Subset>(&mut self) -> Result<SubWorldRaw<A, U>> {
+    pub fn split<U: ComponentBorrow + Subset>(&self) -> Result<SubWorldRaw<A, U>> {
         if !self.has_all::<U>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: type_name::<T>(),
@@ -157,6 +157,22 @@ impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
             .map(|cell| AtomicRef::map(cell, |val| unsafe { val.cast().as_ref() }))?;
 
         Ok(Self::new(val))
+    }
+}
+
+impl<'a, A: Deref<Target = World> + Clone, T: ComponentBorrow, U: ComponentBorrow + Subset>
+    TryFrom<&SubWorldRaw<A, T>> for SubWorldRaw<A, U>
+{
+    type Error = Error;
+
+    fn try_from(value: &SubWorldRaw<A, T>) -> Result<Self> {
+        value.split()
+    }
+}
+
+impl<'a, A, T> From<A> for SubWorldRaw<A, T> {
+    fn from(world: A) -> Self {
+        Self::new(world)
     }
 }
 

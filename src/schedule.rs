@@ -163,7 +163,7 @@ impl ScheduleBuilder {
     }
 
     fn finalize_batch(&mut self) {
-        let batch = std::mem::replace(&mut self.current_batch, Batch::default());
+        let batch = std::mem::take(&mut self.current_batch);
 
         self.batches.push(batch);
 
@@ -185,7 +185,7 @@ impl ScheduleBuilder {
             }
         }
 
-        return true;
+        true
     }
 
     /// Moves the current batches into a schedule
@@ -193,7 +193,7 @@ impl ScheduleBuilder {
         // Push the current batch
         self.finalize_batch();
 
-        let builder = std::mem::replace(self, ScheduleBuilder::default());
+        let builder = std::mem::take(self);
 
         Schedule::new(builder.batches)
     }

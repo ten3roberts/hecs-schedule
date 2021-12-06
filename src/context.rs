@@ -41,19 +41,22 @@ impl<'a> Context<'a> {
 }
 
 /// Dynamically accessed static collection of values
+/// # Safety
+/// Will type erase the given arguments by converting them to NonNull<u8>,
+/// assuming the references are always non null.
 pub unsafe trait Data {
     /// Get the cell associated to the `TypeId`.
-    fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
+    fn get(&self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>>;
 }
 
 unsafe impl Data for () {
-    fn get<'a>(&'a self, _: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+    fn get(&self, _: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
         None
     }
 }
 
 unsafe impl<A: 'static + Send + Sync> Data for (AtomicRefCell<NonNull<u8>>, PhantomData<A>) {
-    fn get<'a>(&'a self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
+    fn get(&self, ty: TypeId) -> Option<&AtomicRefCell<NonNull<u8>>> {
         if ty == TypeId::of::<A>() {
             Some(&self.0)
         } else {
@@ -67,15 +70,16 @@ pub trait IntoData: Send + Sync {
     /// The corresponding [Data] type.
     type Target: Data;
     /// Performs the conversion.
+    /// # Safety
+    /// Converts a tuple of references into NonNull. The lifetime is captures by
+    /// [Context]
     unsafe fn into_data(self) -> Self::Target;
 }
 
 impl IntoData for () {
     type Target = ();
 
-    unsafe fn into_data(self) -> Self::Target {
-        ()
-    }
+    unsafe fn into_data(self) -> Self::Target {}
 }
 
 macro_rules! tuple_impls {
