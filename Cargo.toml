@@ -1,6 +1,6 @@
 [package]
 name = "hecs-schedule"
-version = "0.3.8"
+version = "0.3.9"
 edition = "2021"
 description = "Provides shedulable systems and parallel execution for hecs"
 readme ="README.md"
