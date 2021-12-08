@@ -43,11 +43,15 @@ impl Access {
         self.exclusive
     }
 
-    pub(crate) fn id(&self) -> std::any::TypeId {
+    /// Get the id
+    #[inline]
+    pub fn id(&self) -> std::any::TypeId {
         self.id
     }
 
-    pub(crate) fn name(&self) -> &'static str {
+    /// Get typename
+    #[inline]
+    pub fn name(&self) -> &'static str {
         self.name
     }
 }
