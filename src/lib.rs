@@ -119,7 +119,7 @@ mod query;
 mod schedule;
 mod subworld;
 pub mod system;
-mod traits;
+pub mod traits;
 
 pub use access::*;
 pub use borrow::{Read, Write};
@@ -133,4 +133,3 @@ pub(crate) use error::Result;
 pub use schedule::*;
 pub use subworld::*;
 pub use system::*;
-pub use traits::*;

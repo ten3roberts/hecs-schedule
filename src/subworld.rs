@@ -4,7 +4,8 @@ use std::{any::type_name, marker::PhantomData, ops::Deref};
 use crate::{
     access::*,
     borrow::{Borrows, ComponentBorrow, ContextBorrow},
-    Error, Result, View,
+    traits::View,
+    Error, Result,
 };
 
 use crate::{Context, QueryOne};
