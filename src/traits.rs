@@ -1,4 +1,4 @@
-///! Defines common traits
+//! Defines common traits
 
 /// Traits for types which represent a view or subset of some other type.
 pub trait View<'a> {

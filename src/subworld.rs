@@ -135,7 +135,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     }
 }
 
-impl<A: Deref<Target = World> + Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
+impl<A: Deref<Target = World> + ExternalClone, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Splits the subworld further into a compatible subworld. Fails if not
     /// compatible
     pub fn split<U: ComponentBorrow + Subset>(&self) -> Result<SubWorldRaw<A, U>> {
@@ -147,9 +147,33 @@ impl<A: Deref<Target = World> + Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
         }
 
         Ok(SubWorldRaw {
-            world: self.world.clone(),
+            world: A::external_clone(&self.world),
             marker: PhantomData,
         })
+    }
+}
+
+/// Helper trait for types which do not implement clone, but has a clone wrapper
+pub trait ExternalClone {
+    /// Clones the internal value
+    fn external_clone(&self) -> Self;
+}
+
+impl<T> ExternalClone for &T {
+    fn external_clone(&self) -> Self {
+        self.clone()
+    }
+}
+
+impl<T> ExternalClone for std::cell::Ref<'_, T> {
+    fn external_clone(&self) -> Self {
+        std::cell::Ref::clone(self)
+    }
+}
+
+impl<T> ExternalClone for AtomicRef<'_, T> {
+    fn external_clone(&self) -> Self {
+        AtomicRef::clone(self)
     }
 }
 
@@ -179,8 +203,12 @@ impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
     }
 }
 
-impl<'a, A: Deref<Target = World> + Clone, T: ComponentBorrow, U: ComponentBorrow + Subset>
-    TryFrom<&SubWorldRaw<A, T>> for SubWorldRaw<A, U>
+impl<
+        'a,
+        A: Deref<Target = World> + ExternalClone,
+        T: ComponentBorrow,
+        U: ComponentBorrow + Subset,
+    > TryFrom<&SubWorldRaw<A, T>> for SubWorldRaw<A, U>
 {
     type Error = Error;
 
