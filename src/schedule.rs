@@ -119,6 +119,16 @@ impl Schedule {
                 .try_for_each(|system| system.execute(&context))
         })
     }
+
+    /// Get a reference to the schedule's cmd.
+    pub fn cmd(&self) -> &CommandBuffer {
+        &self.cmd
+    }
+
+    /// Get a mutable reference to the schedule's cmd.
+    pub fn cmd_mut(&mut self) -> &mut CommandBuffer {
+        &mut self.cmd
+    }
 }
 
 #[derive(Default)]

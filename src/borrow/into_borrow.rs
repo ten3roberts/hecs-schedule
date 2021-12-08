@@ -12,7 +12,7 @@ pub trait IntoBorrow {
 }
 
 /// Macro for implementing lifetime eliding IntoBorrow
-
+#[macro_export]
 macro_rules! impl_into_borrow {
     ($name: tt => $borrower: tt) => {
         #[doc(hidden)]
