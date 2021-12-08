@@ -4,12 +4,16 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use hecs::World;
 use smallvec::SmallVec;
 
 #[cfg(feature = "parallel")]
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::{borrow::Borrows, Access, Context, IntoData, Result, System};
+use crate::{
+    borrow::{Borrows, MaybeWrite},
+    Access, CommandBuffer, Context, IntoData, Result, System, Write,
+};
 
 #[derive(Default)]
 /// Represents a unit of work with compatible borrows.
@@ -66,12 +70,16 @@ impl DynamicSystem {
 /// a determined order.
 pub struct Schedule {
     batches: Vec<Batch>,
+    cmd: CommandBuffer,
 }
 
 impl Schedule {
     /// Creates a new schedule from provided batches.
     pub fn new(batches: Vec<Batch>) -> Self {
-        Self { batches }
+        Self {
+            batches,
+            cmd: Default::default(),
+        }
     }
 
     /// Creates a new [ScheduleBuilder]
@@ -80,9 +88,11 @@ impl Schedule {
     }
 
     /// Executes the systems inside the schedule sequentially using the provided data, which
-    /// is a tuple of mutable references. Returns Err if any system fails
-    pub fn execute_seq<D: IntoData>(&mut self, data: D) -> Result<()> {
-        let data = unsafe { data.into_data() };
+    /// is a tuple of mutable references. Returns Err if any system fails.
+    ///
+    /// A commandbuffer is always available and will be flushed at the end.
+    pub fn execute_seq<D: IntoData<CommandBuffer>>(&mut self, data: D) -> Result<()> {
+        let data = unsafe { data.into_data(&mut self.cmd) };
 
         let context = Context::new(&data);
 
@@ -96,8 +106,10 @@ impl Schedule {
     #[cfg(feature = "parallel")]
     /// Executes the systems inside the schedule ina parallel using the provided data, which
     /// is a tuple of mutable references. Returns Err if any system fails
-    pub fn execute<D: IntoData + Send + Sync>(&mut self, data: D) -> Result<()> {
-        let data = unsafe { data.into_data() };
+    ///
+    /// A commandbuffer is always available and will be flushed at the end.
+    pub fn execute<D: IntoData<CommandBuffer> + Send + Sync>(&mut self, data: D) -> Result<()> {
+        let data = unsafe { data.into_data(&mut self.cmd) };
 
         let context = Context::new(&data);
 
@@ -162,6 +174,11 @@ impl ScheduleBuilder {
         self
     }
 
+    /// Flush the commandbuffer and apply the commands to the world
+    pub fn flush(&mut self) -> &mut Self {
+        self.add_system(flush_system)
+    }
+
     fn finalize_batch(&mut self) {
         let batch = std::mem::take(&mut self.current_batch);
 
@@ -178,7 +195,7 @@ impl ScheduleBuilder {
     /// Returns true if no borrows conflict with the current ones
     fn check_compatible(&self, borrows: &Borrows) -> bool {
         for borrow in borrows {
-            // Type is already borrowd
+            // Type is already borrowd&
             if let Some(curr) = self.current_borrows.get(&borrow.id()) {
                 // Already exclusively borroed or new borrow is exlcusive
                 return !curr.exclusive() && !(borrow.exclusive());
@@ -188,8 +205,9 @@ impl ScheduleBuilder {
         true
     }
 
-    /// Moves the current batches into a schedule
+    /// FLushes the commandbuffer and builds the schedule.
     pub fn build(&mut self) -> Schedule {
+        self.flush();
         // Push the current batch
         self.finalize_batch();
 
@@ -197,4 +215,12 @@ impl ScheduleBuilder {
 
         Schedule::new(builder.batches)
     }
+}
+
+// Flushes the commandbuffer
+fn flush_system(mut world: MaybeWrite<World>, mut cmd: Write<CommandBuffer>) -> Result<()> {
+    if let Some(world) = world.option_mut() {
+        cmd.execute(world);
+    }
+    Ok(())
 }

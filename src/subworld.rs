@@ -6,6 +6,7 @@ use crate::{
     borrow::{Borrows, ComponentBorrow, ContextBorrow},
     Error, Result, View,
 };
+
 use crate::{Context, QueryOne};
 use hecs::{Component, Entity, Query, QueryBorrow, World};
 

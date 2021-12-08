@@ -110,6 +110,7 @@
 #[macro_use]
 mod macros;
 mod access;
+#[macro_use]
 pub mod borrow;
 mod commandbuffer;
 pub mod context;

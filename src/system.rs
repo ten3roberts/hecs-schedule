@@ -107,7 +107,7 @@ impl<Err: Into<anyhow::Error>, F: FnMut() -> std::result::Result<(), Err>>
         Borrows::default()
     }
 }
-tuple_impl!(A);
+
 impl_for_tuples!(tuple_impl);
 
 #[cfg(test)]
@@ -139,7 +139,7 @@ mod tests {
         let b = world.spawn(("b", 42));
         let c = world.spawn(("c", 8));
 
-        let data = unsafe { (&mut world, &mut app, &mut val).into_data() };
+        let data = unsafe { (&mut world, &mut app, &mut val).into_data(&mut ()) };
 
         let context = Context::new(&data);
 

@@ -50,7 +50,7 @@ impl<'a, T: 'static> Read<'a, T> {
 }
 
 #[repr(transparent)]
-/// Wrapper type for an immutably borrowed value
+/// Wrapper type for an exclusively borrowed value
 pub struct Write<'a, T>(pub(crate) AtomicRefMut<'a, T>);
 
 impl<'a, T> Write<'a, T> {

@@ -5,17 +5,17 @@ use hecs::{
 };
 
 /// Trait for deferring modifications to the world.
-pub trait WriteCmd: 'static {
+pub trait WriteCmd: Component {
     /// Executes on the world
     fn execute(&mut self, world: &mut World);
 }
 
-struct RemoveCmd<C> {
+struct RemoveCmd<C: Component> {
     entity: Entity,
     marker: PhantomData<C>,
 }
 
-impl<C> RemoveCmd<C> {
+impl<C: Component> RemoveCmd<C> {
     fn new(entity: Entity) -> Self {
         Self {
             entity,
@@ -24,7 +24,7 @@ impl<C> RemoveCmd<C> {
     }
 }
 
-impl<C: 'static + Bundle> WriteCmd for RemoveCmd<C> {
+impl<C: Component + Bundle> WriteCmd for RemoveCmd<C> {
     fn execute(&mut self, world: &mut World) {
         world
             .remove::<C>(self.entity)
@@ -32,7 +32,7 @@ impl<C: 'static + Bundle> WriteCmd for RemoveCmd<C> {
     }
 }
 
-impl<F: FnMut(&mut World) + 'static> WriteCmd for F {
+impl<F: FnMut(&mut World) + Component> WriteCmd for F {
     fn execute(&mut self, world: &mut World) {
         (self)(world)
     }
@@ -80,7 +80,7 @@ impl CommandBuffer {
     }
 
     /// Remove components from entity
-    pub fn remove<C: 'static + Bundle>(&mut self, entity: Entity) {
+    pub fn remove<C: Component + Bundle>(&mut self, entity: Entity) {
         self.writes.push(Box::new(RemoveCmd::<C>::new(entity)))
     }
 

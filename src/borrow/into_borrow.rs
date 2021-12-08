@@ -3,10 +3,7 @@ use std::marker::PhantomData;
 
 use crate::{Context, Read, Result, SubWorld, Write};
 
-use super::ContextBorrow;
-
-#[doc(hidden)]
-pub struct Borrower<T>(PhantomData<T>);
+use super::{ContextBorrow, MaybeRead, MaybeWrite};
 
 /// Lifetime erasure in waiting of GAT
 pub trait IntoBorrow {
@@ -14,44 +11,29 @@ pub trait IntoBorrow {
     type Borrow: for<'x> ContextBorrow<'x>;
 }
 
-impl<T: 'static> IntoBorrow for Read<'_, T> {
-    type Borrow = Borrower<T>;
+/// Macro for implementing lifetime eliding IntoBorrow
+
+macro_rules! impl_into_borrow {
+    ($name: tt => $borrower: tt) => {
+        #[doc(hidden)]
+        pub struct $borrower<T>(PhantomData<T>);
+
+        impl<T: 'static> IntoBorrow for $name<'_, T> {
+            type Borrow = $borrower<T>;
+        }
+
+        impl<'a, T: 'static> ContextBorrow<'a> for $borrower<T> {
+            type Target = $name<'a, T>;
+
+            fn borrow(context: &'a Context) -> Result<Self::Target> {
+                Self::Target::borrow(context)
+            }
+        }
+    };
 }
 
-impl<'a, T: 'static> ContextBorrow<'a> for Borrower<T> {
-    type Target = Read<'a, T>;
-
-    fn borrow(context: &'a Context) -> Result<Self::Target> {
-        Self::Target::borrow(context)
-    }
-}
-
-#[doc(hidden)]
-pub struct BorrowerMut<T>(PhantomData<T>);
-
-impl<T: 'static> IntoBorrow for Write<'_, T> {
-    type Borrow = BorrowerMut<T>;
-}
-
-impl<'a, T: 'static> ContextBorrow<'a> for BorrowerMut<T> {
-    type Target = Write<'a, T>;
-
-    fn borrow(context: &'a Context) -> Result<Self::Target> {
-        Self::Target::borrow(context)
-    }
-}
-
-#[doc(hidden)]
-pub struct SubWorldBorrower<T>(PhantomData<T>);
-
-impl<T: 'static> IntoBorrow for SubWorld<'_, T> {
-    type Borrow = SubWorldBorrower<T>;
-}
-
-impl<'a, T: 'static> ContextBorrow<'a> for SubWorldBorrower<T> {
-    type Target = SubWorld<'a, T>;
-
-    fn borrow(context: &'a Context) -> Result<Self::Target> {
-        Self::Target::borrow(context)
-    }
-}
+impl_into_borrow!(Read => Borrower);
+impl_into_borrow!(Write => BorrowMut);
+impl_into_borrow!(MaybeRead => MaybeBorrower);
+impl_into_borrow!(MaybeWrite => MaybeBorrowerMut);
+impl_into_borrow!(SubWorld => SubWorldBorrower);

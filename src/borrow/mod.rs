@@ -6,8 +6,11 @@
 //! accessors for systems.
 mod cell_borrow;
 mod component_borrow;
+#[macro_use]
 mod into_borrow;
+mod maybe_borrow;
 
 pub use cell_borrow::*;
 pub use component_borrow::*;
 pub use into_borrow::*;
+pub use maybe_borrow::*;
