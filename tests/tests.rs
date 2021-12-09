@@ -32,7 +32,7 @@ fn query() {
 
     let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
 
-    let mut query = subworld.query::<(&i32, &mut f32)>();
+    let mut query = subworld.native_query();
     query
         .iter()
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
