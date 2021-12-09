@@ -38,7 +38,8 @@ macro_rules! tuple_impl {
             }
 
             fn name(&self) -> SystemName {
-                format!("System<{:?}>", ($(type_name::<$name>(),)* )).into()
+                type_name::<Func>().into()
+                // format!("System<{:?}>", ($(type_name::<$name>(),)* )).into()
             }
 
             fn borrows() -> Borrows {
@@ -65,7 +66,8 @@ macro_rules! tuple_impl {
             }
 
             fn name(&self) -> SystemName {
-                format!("System<{:?}> -> Result<(), {:?}>", ($(type_name::<$name>(),)* ), type_name::<Err>()).into()
+                type_name::<Func>().into()
+                // format!("System<{:?}> -> Result<(), {:?}>", ($(type_name::<$name>(),)* ), type_name::<Err>()).into()
             }
 
             fn borrows() -> Borrows {

@@ -210,6 +210,8 @@ fn execute_par() {
         .add_system(observe_after)
         .build();
 
+    eprintln!("{}", schedule.batch_info());
+
     schedule
         .execute((&mut val, &mut other_val))
         .map_err(|e| eprintln!("Error {}", e))

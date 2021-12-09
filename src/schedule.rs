@@ -1,6 +1,7 @@
 use std::{
     any::TypeId,
     collections::HashMap,
+    fmt::Display,
     ops::{Deref, DerefMut},
 };
 
@@ -15,15 +16,47 @@ use crate::{
     Access, CommandBuffer, Context, IntoData, Result, System, Write,
 };
 
+#[derive(Default, Debug, Clone, PartialEq)]
+/// Holds information regarding batches
+pub struct BatchInfo {
+    systems: Vec<SingleBatchInfo>,
+}
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+struct SingleBatchInfo {
+    count: usize,
+    flush: bool,
+}
+
+impl Display for BatchInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Batches: \n")?;
+        for systems in &self.systems {
+            write!(f, "  - {}", systems.count)?;
+            if systems.flush {
+                write!(f, " + flush")?;
+            }
+            write!(f, "\n")?
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Default)]
 /// Represents a unit of work with compatible borrows.
 pub struct Batch {
     systems: SmallVec<[DynamicSystem; 8]>,
+    has_flush: bool,
 }
 
 impl Batch {
     fn push(&mut self, system: DynamicSystem) {
         self.systems.push(system)
+    }
+
+    /// Get a reference to the batch's systems.
+    pub fn systems(&self) -> &SmallVec<[DynamicSystem; 8]> {
+        &self.systems
     }
 }
 
@@ -80,6 +113,20 @@ impl Schedule {
             batches,
             cmd: Default::default(),
         }
+    }
+
+    /// Returns information of how the schedule was split into batches
+    pub fn batch_info(&self) -> BatchInfo {
+        let systems = self
+            .batches
+            .iter()
+            .map(|val| SingleBatchInfo {
+                count: val.systems.len(),
+                flush: val.has_flush,
+            })
+            .collect();
+
+        BatchInfo { systems }
     }
 
     /// Creates a new [ScheduleBuilder]
@@ -186,6 +233,7 @@ impl ScheduleBuilder {
 
     /// Flush the commandbuffer and apply the commands to the world
     pub fn flush(&mut self) -> &mut Self {
+        self.current_batch.has_flush = true;
         self.add_system(flush_system)
     }
 
