@@ -43,7 +43,7 @@ pub enum Error {
     #[doc(hidden)]
     BorrowMut(&'static str),
 
-    #[error("Failed to execute system {0:?}")]
+    #[error("Failed to execute system {0:#?}")]
     #[doc(hidden)]
     SystemError(SystemName, #[source] anyhow::Error),
 }
