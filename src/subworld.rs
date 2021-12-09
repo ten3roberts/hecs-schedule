@@ -135,7 +135,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     }
 }
 
-impl<'w, A: 'w + Deref<Target = World>, T: Query> SubWorldRaw<A, T> {
+impl<A: Deref<Target = World>, T: Query> SubWorldRaw<A, T> {
     /// Query the full access of the subworld. Does not fail as access is
     /// guaranteed
     pub fn native_query(&self) -> QueryBorrow<'_, T> {
