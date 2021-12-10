@@ -207,7 +207,7 @@ impl ScheduleBuilder {
 
         if self.check_incompatible(borrows) {
             // Push and create a new batch
-            self.finalize_batch();
+            self.barrier();
         }
 
         self.add_borrows(borrows);
@@ -219,7 +219,7 @@ impl ScheduleBuilder {
     /// joining them together. Work will be paralellized between the two
     /// schedules.
     pub fn append(&mut self, other: &mut ScheduleBuilder) -> &mut Self {
-        other.finalize_batch();
+        other.barrier();
 
         other.batches.drain(..).for_each(|mut batch| {
             batch
@@ -231,18 +231,26 @@ impl ScheduleBuilder {
         self
     }
 
-    /// Flush the commandbuffer and apply the commands to the world
-    pub fn flush(&mut self) -> &mut Self {
-        self.current_batch.has_flush = true;
-        self.add_system(flush_system)
-    }
-
-    fn finalize_batch(&mut self) {
+    /// Inserts a barrier that will divide the schedule pararell execution in
+    /// two dependant halves.
+    ///
+    /// Usually this is not required, as the borrows of the system automatically
+    /// creates dependencies, but sometimes a manual dependency is needed for things
+    /// such as interior mutability or channels.
+    pub fn barrier(&mut self) -> &mut Self {
         let batch = std::mem::take(&mut self.current_batch);
 
         self.batches.push(batch);
 
-        self.current_borrows.clear()
+        self.current_borrows.clear();
+
+        self
+    }
+
+    /// Flush the commandbuffer and apply the commands to the world
+    pub fn flush(&mut self) -> &mut Self {
+        self.current_batch.has_flush = true;
+        self.add_system(flush_system)
     }
 
     fn add_borrows(&mut self, borrows: &Borrows) {
@@ -267,7 +275,7 @@ impl ScheduleBuilder {
     pub fn build(&mut self) -> Schedule {
         self.flush();
         // Push the current batch
-        self.finalize_batch();
+        self.barrier();
 
         let builder = std::mem::take(self);
 
