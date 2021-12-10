@@ -193,7 +193,7 @@ fn execute_par() {
     };
 
     let mutate = |mut val: Write<i32>| {
-        sleep(Duration::from_millis(20));
+        sleep(Duration::from_millis(200));
         *val = 5;
     };
 

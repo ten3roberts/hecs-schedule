@@ -77,7 +77,7 @@ impl DerefMut for Batch {
 // Type erased boxed system
 #[doc(hidden)]
 pub struct DynamicSystem {
-    func: Box<dyn FnMut(&Context) -> Result<()> + Send + Sync>,
+    func: Box<dyn FnMut(&Context) -> Result<()> + Send>,
     borrows: Borrows,
 }
 
@@ -85,7 +85,7 @@ pub struct DynamicSystem {
 impl DynamicSystem {
     fn new<S, Args, Ret>(mut system: S) -> Self
     where
-        S: 'static + System<Args, Ret> + Send + Sync,
+        S: 'static + System<Args, Ret> + Send,
     {
         let borrows = S::borrows();
         Self {
@@ -195,7 +195,7 @@ impl ScheduleBuilder {
     /// Add a system to the builder
     pub fn add_system<Args, Ret, S>(&mut self, system: S) -> &mut Self
     where
-        S: 'static + System<Args, Ret> + Send + Sync,
+        S: 'static + System<Args, Ret> + Send,
     {
         self.add_internal(DynamicSystem::new(system));
         self
@@ -205,7 +205,7 @@ impl ScheduleBuilder {
         // Check borrow
         let borrows = &system.borrows;
 
-        if !self.check_compatible(borrows) {
+        if self.check_incompatible(borrows) {
             // Push and create a new batch
             self.finalize_batch();
         }
@@ -247,20 +247,20 @@ impl ScheduleBuilder {
 
     fn add_borrows(&mut self, borrows: &Borrows) {
         self.current_borrows
-            .extend(borrows.into_iter().map(|val| (val.id(), val.to_owned())))
+            .extend(borrows.into_iter().map(|val| (val.id(), val.clone())))
     }
 
     /// Returns true if no borrows conflict with the current ones
-    fn check_compatible(&self, borrows: &Borrows) -> bool {
+    fn check_incompatible(&self, borrows: &Borrows) -> bool {
         for borrow in borrows {
-            // Type is already borrowd&
+            // Type is already borrowed
             if let Some(curr) = self.current_borrows.get(&borrow.id()) {
-                // Already exclusively borroed or new borrow is exlcusive
-                return !curr.exclusive() && !(borrow.exclusive());
+                // Already exclusively borrowed or new borrow is exlcusive
+                return curr.exclusive() || borrow.exclusive();
             }
         }
 
-        true
+        false
     }
 
     /// FLushes the commandbuffer and builds the schedule.

@@ -11,7 +11,7 @@ pub type Borrows = SmallVec<[Access; 8]>;
 use atomic_refcell::{AtomicRef, AtomicRefCell, AtomicRefMut};
 use smallvec::{smallvec, SmallVec};
 
-use crate::{Access, Context, Error, IntoAccess, Result};
+use crate::{Access, Context, Error, Result};
 
 use super::ComponentBorrow;
 
@@ -90,12 +90,6 @@ struct BorrowMarker<T> {
     marker: PhantomData<T>,
 }
 
-impl<T: IntoAccess> IntoAccess for BorrowMarker<T> {
-    fn access() -> Access {
-        Access::of::<T>()
-    }
-}
-
 /// Helper trait for borrowing either immutably or mutably from context
 pub trait ContextBorrow<'a> {
     /// The resulting type after borrowing from context
@@ -139,7 +133,7 @@ impl<'a, T: 'static> ContextBorrow<'a> for Write<'a, T> {
 
 impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
     fn borrows() -> Borrows {
-        smallvec![BorrowMarker::<&T>::access()]
+        smallvec![Access::of::<&BorrowMarker<T>>()]
     }
 
     fn has<U: crate::IntoAccess>() -> bool {
@@ -155,15 +149,15 @@ impl<'a, T: 'static> ComponentBorrow for Read<'a, T> {
 
 impl<'a, T: 'static> ComponentBorrow for Write<'a, T> {
     fn borrows() -> Borrows {
-        smallvec![BorrowMarker::<&mut T>::access()]
+        smallvec![Access::of::<&mut BorrowMarker<T>>()]
     }
 
     fn has<U: crate::IntoAccess>() -> bool {
-        Access::of::<&T>().id == U::access().id
+        Access::of::<&mut T>().id == U::access().id
     }
 
     fn has_dynamic(id: std::any::TypeId, _: bool) -> bool {
-        let l = Access::of::<&T>();
+        let l = Access::of::<&mut T>();
 
         l.id == id
     }
