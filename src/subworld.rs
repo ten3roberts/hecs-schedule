@@ -1,15 +1,16 @@
 use atomic_refcell::AtomicRef;
+use smallvec::smallvec;
 use std::{any::type_name, marker::PhantomData, ops::Deref};
 
 use crate::{
     access::*,
     borrow::{Borrows, ComponentBorrow, ContextBorrow},
     traits::View,
-    Error, Result,
+    Error, Read, Result,
 };
 
 use crate::{Context, QueryOne};
-use hecs::{Component, Entity, Query, QueryBorrow, World};
+use hecs::{Component, Entity, Fetch, Query, QueryBorrow, World};
 
 /// Type alias for a subworld referencing the world by an [atomic_refcell::AtomicRef]. Most
 /// common for schedules
@@ -244,11 +245,12 @@ impl<'a, T> From<&'a Context<'a>> for SubWorldRaw<AtomicRef<'a, World>, T> {
     }
 }
 
-impl<A, T: ComponentBorrow> ComponentBorrow for SubWorldRaw<A, T> {
+impl<A, T: ComponentBorrow + Query> ComponentBorrow for SubWorldRaw<A, T> {
     fn borrows() -> Borrows {
-        let mut access = T::borrows();
-        access.push(Access::of::<&World>());
-        access
+        smallvec![Access::of::<&World>()]
+        // let mut access = T::borrows();
+        // access.push(Access::of::<&World>());
+        // access
     }
 
     fn has<U: IntoAccess>() -> bool {

@@ -1,7 +1,7 @@
 use std::{
     any::TypeId,
     collections::HashMap,
-    fmt::Display,
+    fmt::{Debug, Display},
     ops::{Deref, DerefMut},
 };
 
@@ -13,29 +13,23 @@ use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{
     borrow::{Borrows, MaybeWrite},
-    Access, CommandBuffer, Context, IntoData, Result, System, Write,
+    Access, CommandBuffer, Context, IntoData, Result, System, SystemName, Write,
 };
 
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone)]
 /// Holds information regarding batches
-pub struct BatchInfo {
-    systems: Vec<SingleBatchInfo>,
-}
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-struct SingleBatchInfo {
-    count: usize,
-    flush: bool,
+pub struct BatchInfo<'a> {
+    batches: &'a [Batch],
 }
 
-impl Display for BatchInfo {
+impl<'a> Display for BatchInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Batches: \n")?;
-        for systems in &self.systems {
-            write!(f, "  - {}", systems.count)?;
-            if systems.flush {
-                write!(f, " + flush")?;
+        for batch in self.batches {
+            for system in &batch.systems {
+                write!(f, " - {}\n", system.name())?;
             }
-            write!(f, "\n")?
+            write!(f, "\n")?;
         }
 
         Ok(())
@@ -47,6 +41,18 @@ impl Display for BatchInfo {
 pub struct Batch {
     systems: SmallVec<[DynamicSystem; 8]>,
     has_flush: bool,
+}
+
+impl Debug for Batch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = f.debug_list();
+
+        for system in self.systems() {
+            list.entry(&system.name());
+        }
+
+        list.finish()
+    }
 }
 
 impl Batch {
@@ -78,6 +84,7 @@ impl DerefMut for Batch {
 #[doc(hidden)]
 pub struct DynamicSystem {
     func: Box<dyn FnMut(&Context) -> Result<()> + Send>,
+    name: SystemName,
     borrows: Borrows,
 }
 
@@ -88,14 +95,21 @@ impl DynamicSystem {
         S: 'static + System<Args, Ret> + Send,
     {
         let borrows = S::borrows();
+        let name = system.name();
         Self {
             func: Box::new(move |context| system.execute(context)),
+            name,
             borrows,
         }
     }
 
     fn execute(&mut self, context: &Context) -> Result<()> {
         (self.func)(context)
+    }
+
+    /// Get a reference to the dynamic system's name.
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 }
 
@@ -117,16 +131,9 @@ impl Schedule {
 
     /// Returns information of how the schedule was split into batches
     pub fn batch_info(&self) -> BatchInfo {
-        let systems = self
-            .batches
-            .iter()
-            .map(|val| SingleBatchInfo {
-                count: val.systems.len(),
-                flush: val.has_flush,
-            })
-            .collect();
-
-        BatchInfo { systems }
+        BatchInfo {
+            batches: &self.batches,
+        }
     }
 
     /// Creates a new [ScheduleBuilder]
@@ -205,7 +212,7 @@ impl ScheduleBuilder {
         // Check borrow
         let borrows = &system.borrows;
 
-        if self.check_incompatible(borrows) {
+        if !self.check_compatible(borrows) {
             // Push and create a new batch
             self.barrier();
         }
@@ -259,16 +266,18 @@ impl ScheduleBuilder {
     }
 
     /// Returns true if no borrows conflict with the current ones
-    fn check_incompatible(&self, borrows: &Borrows) -> bool {
+    fn check_compatible(&self, borrows: &Borrows) -> bool {
         for borrow in borrows {
             // Type is already borrowed
             if let Some(curr) = self.current_borrows.get(&borrow.id()) {
                 // Already exclusively borrowed or new borrow is exlcusive
-                return curr.exclusive() || borrow.exclusive();
+                if curr.exclusive() || borrow.exclusive() {
+                    return false;
+                }
             }
         }
 
-        false
+        true
     }
 
     /// FLushes the commandbuffer and builds the schedule.

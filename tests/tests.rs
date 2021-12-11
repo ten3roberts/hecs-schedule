@@ -217,3 +217,55 @@ fn execute_par() {
         .map_err(|e| eprintln!("Error {}", e))
         .expect("Failed to execute schedule");
 }
+
+#[test]
+fn execute_par_rw() {
+    #[derive(Debug, PartialEq, Eq)]
+    struct A(i32);
+    #[derive(Debug, PartialEq, Eq)]
+    struct B(i32);
+    #[derive(Debug, PartialEq, Eq)]
+    struct C(i32);
+
+    let mut a = A(5);
+    let mut b = B(7);
+    let mut c = C(8);
+
+    let outer = "Foo";
+    let outer2 = "Bar";
+
+    let mut world = World::default();
+
+    fn system1(a: Read<A>, b: Read<B>, c: Read<C>) {
+        assert_eq!(*a, A(5));
+        assert_eq!(*b, B(7));
+        assert_eq!(*c, C(8));
+    }
+
+    fn system2(mut a: Write<A>, outer: &str) {
+        sleep(Duration::from_millis(100));
+        *a = A(11);
+        assert_eq!(outer, "Foo");
+    }
+
+    fn system3(a: Read<A>, outer: &str) {
+        assert_eq!(*a, A(11));
+        assert_eq!(outer, "Bar");
+    }
+
+    let mut schedule = Schedule::builder()
+        .add_system(
+            |_: SubWorld<(&A, &B)>, a: Read<_>, b: Read<_>, c: Read<_>| {
+                system1(a, b, c);
+            },
+        )
+        .add_system(move |_: SubWorld<&i32>, a: Write<_>| system2(a, outer))
+        .add_system(move |_: Read<C>, a: Read<_>| system3(a, outer2))
+        .build();
+
+    eprintln!("Batches: {}", schedule.batch_info());
+
+    schedule
+        .execute((&mut world, &mut a, &mut b, &mut c))
+        .unwrap();
+}
