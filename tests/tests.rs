@@ -64,6 +64,7 @@ fn custom_query() {
     assert!(!subworld.has_all::<(&mut &'static str, &i32)>());
     assert!(!subworld.has_all::<(&mut f32, &i32, &u32)>());
 
+    let column = subworld.try_get_column::<i32>().unwrap();
     let mut query = subworld.try_query_one::<&i32>(entity).unwrap();
     let val = query.get().unwrap();
     assert_eq!(*val, 42);
@@ -74,7 +75,7 @@ fn custom_query() {
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
-    let val = subworld.try_get::<i32>(entity).unwrap();
+    let val = column.get(entity).unwrap();
     assert_eq!(*val, 42);
 }
 

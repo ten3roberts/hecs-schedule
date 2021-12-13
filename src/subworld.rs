@@ -276,6 +276,11 @@ pub trait GenericWorld {
     /// Returns the contextual result since hecs-schedule is required to be imported
     /// anyway
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>>;
+
+    /// Borrow every component of type C
+    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>>;
+    /// Borrow every component mutably of type C
+    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>>;
 }
 
 impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
@@ -293,6 +298,28 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
 
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
         self.get_mut(entity)
+    }
+
+    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>> {
+        if !self.has::<&C>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: type_name::<T>(),
+                query: type_name::<&C>(),
+            });
+        }
+
+        Ok(self.world.column())
+    }
+
+    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>> {
+        if !self.has::<&C>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: type_name::<T>(),
+                query: type_name::<&C>(),
+            });
+        }
+
+        Ok(self.world.column_mut())
     }
 }
 
@@ -326,5 +353,13 @@ impl GenericWorld for World {
                 Err(Error::MissingComponent(entity, name))
             }
         }
+    }
+
+    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>> {
+        Ok(self.column())
+    }
+
+    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>> {
+        Ok(self.column_mut())
     }
 }
