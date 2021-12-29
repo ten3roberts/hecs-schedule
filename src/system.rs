@@ -22,7 +22,7 @@ pub trait System<Args, Ret> {
     fn borrows() -> Borrows;
 
     /// Wrap the system with a custom name
-    fn names<S: Into<Cow<'static, str>>>(self, name: S) -> NamedSystem<Self>
+    fn named<S: Into<Cow<'static, str>>>(self, name: S) -> NamedSystem<Self>
     where
         Self: Sized,
     {
