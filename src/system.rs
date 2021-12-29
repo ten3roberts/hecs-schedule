@@ -20,6 +20,17 @@ pub trait System<Args, Ret> {
 
     /// Returns which data will be accessed
     fn borrows() -> Borrows;
+
+    /// Wrap the system with a custom name
+    fn names<S: Into<Cow<'static, str>>>(self, name: S) -> NamedSystem<Self>
+    where
+        Self: Sized,
+    {
+        NamedSystem {
+            inner: self,
+            name: name.into(),
+        }
+    }
 }
 
 macro_rules! tuple_impl {
@@ -107,6 +118,26 @@ impl<Err: Into<anyhow::Error>, F: FnMut() -> std::result::Result<(), Err>>
 
     fn borrows() -> Borrows {
         Borrows::default()
+    }
+}
+
+/// A wrapper for providing a system with a name
+pub struct NamedSystem<F> {
+    inner: F,
+    name: Cow<'static, str>,
+}
+
+impl<F: System<Args, Ret>, Args, Ret> System<Args, Ret> for NamedSystem<F> {
+    fn execute(&mut self, context: &Context) -> Result<()> {
+        self.inner.execute(context)
+    }
+
+    fn name(&self) -> SystemName {
+        self.name.clone()
+    }
+
+    fn borrows() -> Borrows {
+        F::borrows()
     }
 }
 
