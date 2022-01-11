@@ -133,6 +133,11 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             }
         }
     }
+
+    /// Reserve multiple entities concurrently
+    pub fn reserve_entities<'a>(&'a self, count: u32) -> impl Iterator<Item = Entity> + 'a {
+        self.world.reserve_entities(count)
+    }
 }
 
 impl<A: Deref<Target = World>, T: Query> SubWorldRaw<A, T> {
@@ -281,6 +286,9 @@ pub trait GenericWorld {
     fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>>;
     /// Borrow every component mutably of type C
     fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>>;
+
+    /// Reserve an entity
+    fn reserve(&self) -> Entity;
 }
 
 impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
@@ -320,6 +328,11 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
         }
 
         Ok(self.world.column_mut())
+    }
+
+    /// Reserve an entity
+    fn reserve(&self) -> Entity {
+        self.world.reserve_entity()
     }
 }
 
@@ -361,5 +374,10 @@ impl GenericWorld for World {
 
     fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>> {
         Ok(self.column_mut())
+    }
+
+    /// Reserve an entity
+    fn reserve(&self) -> Entity {
+        self.reserve_entity()
     }
 }
