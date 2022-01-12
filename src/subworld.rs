@@ -205,13 +205,11 @@ impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
     }
 }
 
-impl<A: ExternalClone, T: ComponentBorrow, U: ComponentBorrow + Subset> TryFrom<&SubWorldRaw<A, T>>
+impl<A: ExternalClone, T: ComponentBorrow, U: ComponentBorrow + Subset> From<&SubWorldRaw<A, T>>
     for SubWorldRaw<A, U>
 {
-    type Error = Error;
-
-    fn try_from(value: &SubWorldRaw<A, T>) -> Result<Self> {
-        value.split()
+    fn from(value: &SubWorldRaw<A, T>) -> Self {
+        value.split().expect("Incompatible subworld")
     }
 }
 
@@ -231,6 +229,17 @@ impl<'a, T> From<&'a Context<'a>> for SubWorldRaw<AtomicRef<'a, World>, T> {
         let val = AtomicRef::map(borrow, |val| unsafe { val.cast().as_ref() });
 
         Self::new(val)
+    }
+}
+
+impl<'a, 'b, T: ComponentBorrow, U: ComponentBorrow + Subset> From<&'b SubWorld<'a, T>>
+    for SubWorldRef<'b, U>
+{
+    fn from(subworld: &'b SubWorld<'a, T>) -> Self {
+        let world = subworld.world.deref();
+        SubWorldRef::<T>::new(world)
+            .split()
+            .expect("Incompatible subworld")
     }
 }
 

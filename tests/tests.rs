@@ -293,9 +293,13 @@ fn atomic() {
     let world = AtomicRefCell::new(World::default());
 
     world.borrow_mut().spawn(("a",));
+    let e = world.borrow_mut().spawn(("b", 4.5_f32));
 
     let a = SubWorld::<(&'static &str, &mut f32)>::new(world.borrow());
-    let a: SubWorld<&'static &str> = a.split().unwrap();
+    let b: SubWorld<&'static &str> = a.split().unwrap();
 
-    assert!(a.native_query().iter().map(|(_, val)| *val).eq(["a"]));
+    let ref_world: SubWorldRef<&f32> = (&a).into();
+    assert_eq!(*ref_world.get::<f32>(e).unwrap(), 4.5);
+
+    assert!(b.native_query().iter().map(|(_, val)| *val).eq(["a", "b"]));
 }
