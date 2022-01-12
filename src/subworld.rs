@@ -19,6 +19,9 @@ pub type SubWorldRefCell<'a, T> = SubWorldRaw<std::cell::Ref<'a, World>, T>;
 /// Type alias for a subworld referencing the world by a reference
 pub type SubWorldRef<'a, T> = SubWorldRaw<&'a World, T>;
 
+/// An empty subworld, can not access any components
+pub type EmptyWorld<'a> = SubWorldRef<'a, ()>;
+
 /// Represents a borrow of the world which can only access a subset of
 /// components (unless [`AllAccess`] is used).
 ///
