@@ -118,6 +118,7 @@ pub mod error;
 mod query;
 mod schedule;
 mod subworld;
+mod subworld_impls;
 pub mod system;
 pub mod traits;
 
@@ -127,6 +128,7 @@ pub use commandbuffer::*;
 pub use context::*;
 pub use error::Error;
 pub use query::*;
+pub use subworld_impls::*;
 // Don't export result so that hecs-schedule can be glob imported without
 // conflict
 pub(crate) use error::Result;
