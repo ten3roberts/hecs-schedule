@@ -107,5 +107,3 @@ let mut schedule = Schedule::builder()
 schedule.execute((&mut world, &mut app)).expect("Failed to execute schedule");
 
 ```
-
-License: MIT

@@ -12,9 +12,9 @@ repository = "https://github.com/ten3roberts/hecs-schedule"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.51"
+anyhow = "1.0.52"
 atomic_refcell = "0.1.8"
-hecs = { version = "0.7.1", features = [ "macros" ] }
+hecs = { version = "0.7.3", features = [ "macros" ] }
 rayon = { version = "1.5.1", optional = true }
 smallvec = "1.7.0"
 thiserror = "1.0.30"

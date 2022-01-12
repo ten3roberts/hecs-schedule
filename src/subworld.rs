@@ -44,7 +44,7 @@ impl<A, T> SubWorldRaw<A, T> {
     }
 }
 
-impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
+impl<A, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Returns true if the subworld can access the borrow of T
     pub fn has<U: IntoAccess>(&self) -> bool {
         T::has::<U>()
@@ -54,7 +54,9 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     pub fn has_all<U: Subset>(&self) -> bool {
         U::is_subset::<T>()
     }
+}
 
+impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Query the subworld.
     /// # Panics
     /// Panics if the query items are not a compatible subset of the subworld.
@@ -63,22 +65,9 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             .expect("Failed to execute query on subworld")
     }
 
-    /// Query the subworld.
-    /// Fails if the query items are not compatible with the subworld
-    pub fn try_query<Q: Query + Subset + ComponentBorrow>(&self) -> Result<QueryBorrow<'_, Q>> {
-        if !self.has_all::<Q>() {
-            return Err(Error::IncompatibleSubworld {
-                subworld: type_name::<T>(),
-                query: type_name::<Q>(),
-            });
-        } else {
-            Ok(self.world.query())
-        }
-    }
-
     /// Query the subworld for a single entity.
     /// Wraps the hecs::NoSuchEntity error and provides the entity id
-    pub fn try_query_one<Q: Query + Subset>(&'w self, entity: Entity) -> Result<QueryOne<'w, Q>> {
+    pub fn query_one<Q: Query + Subset>(&'w self, entity: Entity) -> Result<QueryOne<'w, Q>> {
         if !self.has_all::<Q>() {
             return Err(Error::IncompatibleSubworld {
                 subworld: type_name::<T>(),
@@ -148,7 +137,7 @@ impl<A: Deref<Target = World>, T: Query> SubWorldRaw<A, T> {
     }
 }
 
-impl<A: Deref<Target = World> + ExternalClone, T: ComponentBorrow> SubWorldRaw<A, T> {
+impl<A: Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Splits the subworld further into a compatible subworld. Fails if not
     /// compatible
     pub fn split<U: ComponentBorrow + Subset>(&self) -> Result<SubWorldRaw<A, U>> {
@@ -160,39 +149,14 @@ impl<A: Deref<Target = World> + ExternalClone, T: ComponentBorrow> SubWorldRaw<A
         }
 
         Ok(SubWorldRaw {
-            world: A::external_clone(&self.world),
+            world: self.world.clone(),
             marker: PhantomData,
         })
     }
 }
 
-/// Helper trait for types which do not implement clone, but has a clone wrapper
-pub trait ExternalClone {
-    /// Clones the internal value
-    fn external_clone(&self) -> Self;
-}
-
-impl<T> ExternalClone for &T {
-    fn external_clone(&self) -> Self {
-        self.clone()
-    }
-}
-
-impl<T> ExternalClone for std::cell::Ref<'_, T> {
-    fn external_clone(&self) -> Self {
-        std::cell::Ref::clone(self)
-    }
-}
-
-impl<T> ExternalClone for AtomicRef<'_, T> {
-    fn external_clone(&self) -> Self {
-        AtomicRef::clone(self)
-    }
-}
-
 impl<'a, A, T> View<'a> for SubWorldRaw<A, T>
 where
-    A: Deref<Target = World>,
     T: ComponentBorrow,
 {
     type Superset = A;
@@ -216,12 +180,8 @@ impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
     }
 }
 
-impl<
-        'a,
-        A: Deref<Target = World> + ExternalClone,
-        T: ComponentBorrow,
-        U: ComponentBorrow + Subset,
-    > TryFrom<&SubWorldRaw<A, T>> for SubWorldRaw<A, U>
+impl<A: Clone, T: ComponentBorrow, U: ComponentBorrow + Subset> TryFrom<&SubWorldRaw<A, T>>
+    for SubWorldRaw<A, U>
 {
     type Error = Error;
 
@@ -230,7 +190,7 @@ impl<
     }
 }
 
-impl<'a, A, T> From<A> for SubWorldRaw<A, T> {
+impl<A, T> From<A> for SubWorldRaw<A, T> {
     fn from(world: A) -> Self {
         Self::new(world)
     }
@@ -283,9 +243,6 @@ pub trait GenericWorld {
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>>;
 
     /// Borrow every component of type C
-    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>>;
-    /// Borrow every component mutably of type C
-    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>>;
 
     /// Reserve an entity
     fn reserve(&self) -> Entity;
@@ -293,11 +250,18 @@ pub trait GenericWorld {
 
 impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
     fn try_query<Q: Query + Subset>(&self) -> Result<QueryBorrow<'_, Q>> {
-        self.try_query()
+        if !self.has_all::<Q>() {
+            return Err(Error::IncompatibleSubworld {
+                subworld: type_name::<T>(),
+                query: type_name::<Q>(),
+            });
+        } else {
+            Ok(self.world.query())
+        }
     }
 
     fn try_query_one<Q: Query + Subset>(&self, entity: Entity) -> Result<QueryOne<'_, Q>> {
-        self.try_query_one(entity)
+        self.query_one(entity)
     }
 
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
@@ -306,28 +270,6 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
 
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
         self.get_mut(entity)
-    }
-
-    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>> {
-        if !self.has::<&C>() {
-            return Err(Error::IncompatibleSubworld {
-                subworld: type_name::<T>(),
-                query: type_name::<&C>(),
-            });
-        }
-
-        Ok(self.world.column())
-    }
-
-    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>> {
-        if !self.has::<&C>() {
-            return Err(Error::IncompatibleSubworld {
-                subworld: type_name::<T>(),
-                query: type_name::<&C>(),
-            });
-        }
-
-        Ok(self.world.column_mut())
     }
 
     /// Reserve an entity
@@ -366,14 +308,6 @@ impl GenericWorld for World {
                 Err(Error::MissingComponent(entity, name))
             }
         }
-    }
-
-    fn try_get_column<C: Component>(&self) -> Result<hecs::Column<C>> {
-        Ok(self.column())
-    }
-
-    fn try_get_column_mut<C: Component>(&self) -> Result<hecs::ColumnMut<C>> {
-        Ok(self.column_mut())
     }
 
     /// Reserve an entity

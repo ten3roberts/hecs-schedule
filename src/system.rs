@@ -145,7 +145,7 @@ impl_for_tuples!(tuple_impl);
 
 #[cfg(test)]
 mod tests {
-    use crate::{system::System, Context, IntoData, Read, SubWorld};
+    use crate::{system::System, Context, GenericWorld, IntoData, Read, SubWorld};
     use hecs::World;
 
     use anyhow::{ensure, Result};

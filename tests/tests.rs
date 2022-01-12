@@ -10,7 +10,10 @@ fn has() {
 
     world.spawn((67_i32, 7.0_f32));
 
-    let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
+    let subworld = SubWorldRef::<(&i32, &mut f32, &String)>::new(&world);
+    let subworld = &subworld;
+
+    let subworld: SubWorldRef<(&i32, &mut f32)> = subworld.try_into().unwrap();
 
     assert!(subworld.has::<&i32>());
     assert!(!subworld.has::<&mut i32>());
@@ -64,7 +67,8 @@ fn custom_query() {
     assert!(!subworld.has_all::<(&mut &'static str, &i32)>());
     assert!(!subworld.has_all::<(&mut f32, &i32, &u32)>());
 
-    let column = subworld.try_get_column::<i32>().unwrap();
+    let mut query = subworld.query::<&i32>();
+    let view = query.view();
     let mut query = subworld.try_query_one::<&i32>(entity).unwrap();
     let val = query.get().unwrap();
     assert_eq!(*val, 42);
@@ -75,7 +79,7 @@ fn custom_query() {
         .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
-    let val = column.get(entity).unwrap();
+    let val = view.get(entity).unwrap();
     assert_eq!(*val, 42);
 }
 
