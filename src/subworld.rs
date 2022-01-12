@@ -137,7 +137,7 @@ impl<A: Deref<Target = World>, T: Query> SubWorldRaw<A, T> {
     }
 }
 
-impl<A: Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
+impl<A: ExternalClone, T: ComponentBorrow> SubWorldRaw<A, T> {
     /// Splits the subworld further into a compatible subworld. Fails if not
     /// compatible
     pub fn split<U: ComponentBorrow + Subset>(&self) -> Result<SubWorldRaw<A, U>> {
@@ -149,14 +149,39 @@ impl<A: Clone, T: ComponentBorrow> SubWorldRaw<A, T> {
         }
 
         Ok(SubWorldRaw {
-            world: self.world.clone(),
+            world: A::external_clone(&self.world),
             marker: PhantomData,
         })
     }
 }
 
+/// Helper trait for types which do not implement clone, but has a clone wrapper
+pub trait ExternalClone {
+    /// Clones the internal value
+    fn external_clone(&self) -> Self;
+}
+
+impl<T> ExternalClone for &T {
+    fn external_clone(&self) -> Self {
+        self.clone()
+    }
+}
+
+impl<T> ExternalClone for std::cell::Ref<'_, T> {
+    fn external_clone(&self) -> Self {
+        std::cell::Ref::clone(self)
+    }
+}
+
+impl<T> ExternalClone for AtomicRef<'_, T> {
+    fn external_clone(&self) -> Self {
+        AtomicRef::clone(self)
+    }
+}
+
 impl<'a, A, T> View<'a> for SubWorldRaw<A, T>
 where
+    A: Deref<Target = World>,
     T: ComponentBorrow,
 {
     type Superset = A;
@@ -180,7 +205,7 @@ impl<'a, T> ContextBorrow<'a> for SubWorld<'a, T> {
     }
 }
 
-impl<A: Clone, T: ComponentBorrow, U: ComponentBorrow + Subset> TryFrom<&SubWorldRaw<A, T>>
+impl<A: ExternalClone, T: ComponentBorrow, U: ComponentBorrow + Subset> TryFrom<&SubWorldRaw<A, T>>
     for SubWorldRaw<A, U>
 {
     type Error = Error;
@@ -241,8 +266,6 @@ pub trait GenericWorld {
     /// Returns the contextual result since hecs-schedule is required to be imported
     /// anyway
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>>;
-
-    /// Borrow every component of type C
 
     /// Reserve an entity
     fn reserve(&self) -> Entity;

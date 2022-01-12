@@ -1,6 +1,7 @@
 use std::{thread::sleep, time::Duration};
 
 use anyhow::{bail, ensure};
+use atomic_refcell::AtomicRefCell;
 use hecs::{Query, World};
 use hecs_schedule::*;
 
@@ -273,4 +274,28 @@ fn execute_par_rw() {
     schedule
         .execute((&mut world, &mut a, &mut b, &mut c))
         .unwrap();
+}
+
+#[test]
+fn split() {
+    let world = World::default();
+
+    let a = SubWorldRef::<(&i32, &f32)>::new(&world);
+
+    let b: SubWorldRef<&f32> = a.split().unwrap();
+    let _empty: SubWorldRef<()> = a.split().unwrap();
+    let _ = b.query::<&f32>();
+    assert!(b.try_query::<&i32>().is_err());
+}
+
+#[test]
+fn atomic() {
+    let world = AtomicRefCell::new(World::default());
+
+    world.borrow_mut().spawn(("a",));
+
+    let a = SubWorld::<(&'static &str, &mut f32)>::new(world.borrow());
+    let a: SubWorld<&'static &str> = a.split().unwrap();
+
+    assert!(a.native_query().iter().map(|(_, val)| *val).eq(["a"]));
 }
