@@ -24,7 +24,7 @@ pub struct MaybeRead<'a, T>(pub(crate) Option<AtomicRef<'a, T>>);
 impl<'a, T> Clone for MaybeRead<'a, T> {
     fn clone(&self) -> Self {
         match &self.0 {
-            Some(val) => Self(Some(AtomicRef::clone(&val))),
+            Some(val) => Self(Some(AtomicRef::clone(val))),
             None => Self(None),
         }
     }

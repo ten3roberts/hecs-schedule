@@ -24,12 +24,12 @@ pub struct BatchInfo<'a> {
 
 impl<'a> Display for BatchInfo<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Batches: \n")?;
+        writeln!(f, "Batches: ")?;
         for batch in self.batches {
             for system in &batch.systems {
-                write!(f, " - {}\n", system.name())?;
+                writeln!(f, " - {}", system.name())?;
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())
@@ -262,7 +262,7 @@ impl ScheduleBuilder {
 
     fn add_borrows(&mut self, borrows: &Borrows) {
         self.current_borrows
-            .extend(borrows.into_iter().map(|val| (val.id(), val.clone())))
+            .extend(borrows.into_iter().map(|val| (val.id(), *val)))
     }
 
     /// Returns true if no borrows conflict with the current ones

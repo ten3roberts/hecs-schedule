@@ -122,7 +122,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     }
 
     /// Reserve multiple entities concurrently
-    pub fn reserve_entities<'a>(&'a self, count: u32) -> impl Iterator<Item = Entity> + 'a {
+    pub fn reserve_entities(&self, count: u32) -> impl Iterator<Item = Entity> + '_ {
         self.world.reserve_entities(count)
     }
 

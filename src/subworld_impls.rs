@@ -41,7 +41,7 @@ pub trait ExternalClone {
 
 impl<T> ExternalClone for &T {
     fn external_clone(&self) -> Self {
-        self.clone()
+        <&T>::clone(self)
     }
 }
 
@@ -114,7 +114,7 @@ impl<'a, 'b, T: ComponentBorrow, U: ComponentBorrow + Subset> From<&'b SubWorld<
     for SubWorldRef<'b, U>
 {
     fn from(subworld: &'b SubWorld<'a, T>) -> Self {
-        subworld.into_ref()
+        subworld.to_ref()
     }
 }
 
@@ -138,12 +138,12 @@ impl<A, T: ComponentBorrow + Query> ComponentBorrow for SubWorldRaw<A, T> {
 pub trait GenericWorld {
     /// Transform this into a subworld which borrows no components.
     /// This is useful for concurrent access of entities.
-    fn into_empty(&self) -> EmptyWorld {
-        self.into_ref()
+    fn to_empty(&self) -> EmptyWorld {
+        self.to_ref()
     }
 
     /// Convert the subworld into another holding an internal reference to the original world.
-    fn into_ref<T: ComponentBorrow + Subset>(&self) -> SubWorldRef<T>;
+    fn to_ref<T: ComponentBorrow + Subset>(&self) -> SubWorldRef<T>;
     /// Queries the world
     fn try_query<Q: Query + Subset>(&self) -> Result<QueryBorrow<Q>>;
     /// Queries the world for a specific entity
@@ -164,7 +164,7 @@ pub trait GenericWorld {
 }
 
 impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<A, T> {
-    fn into_ref<U: ComponentBorrow + Subset>(&self) -> SubWorldRef<U> {
+    fn to_ref<U: ComponentBorrow + Subset>(&self) -> SubWorldRef<U> {
         let world = self.world.deref();
         SubWorldRef::<T>::new(world).split().unwrap()
     }
@@ -199,7 +199,7 @@ impl<A: Deref<Target = World>, T: ComponentBorrow> GenericWorld for SubWorldRaw<
 }
 
 impl GenericWorld for World {
-    fn into_ref<T: ComponentBorrow + Subset>(&self) -> SubWorldRef<T> {
+    fn to_ref<T: ComponentBorrow + Subset>(&self) -> SubWorldRef<T> {
         SubWorldRef::new(self)
     }
 

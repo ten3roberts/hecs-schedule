@@ -53,7 +53,7 @@ where
     fn par_for_each(self, batch_size: u32, func: impl Fn((Entity, Self::Item)) + Send + Sync) {
         self.iter_batched(batch_size)
             .par_bridge()
-            .for_each(|batch| batch.for_each(|val| func(val)))
+            .for_each(|batch| batch.for_each(&func))
     }
 
     fn try_par_for_each<E: Send>(
@@ -63,6 +63,6 @@ where
     ) -> Result<(), E> {
         self.iter_batched(batch_size)
             .par_bridge()
-            .try_for_each(|mut batch| batch.try_for_each(|val| func(val)))
+            .try_for_each(|mut batch| batch.try_for_each(&func))
     }
 }

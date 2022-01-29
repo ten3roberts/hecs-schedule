@@ -297,7 +297,7 @@ fn atomic() {
     let ref_world: SubWorldRef<&f32> = (&a).into();
     assert_eq!(*ref_world.get::<f32>(e).unwrap(), 4.5);
 
-    let empty = a.into_empty();
+    let empty = a.to_empty();
 
     // Count total number of entities
     assert_eq!(empty.query::<()>().iter().count(), 2);
