@@ -3,7 +3,7 @@ use std::{thread::sleep, time::Duration};
 use anyhow::{bail, ensure};
 use atomic_refcell::AtomicRefCell;
 use hecs::{Query, World};
-use hecs_schedule::*;
+use hecs_schedule::{traits::QueryExt, *};
 
 #[test]
 fn has() {
@@ -37,9 +37,7 @@ fn query() {
     let subworld = SubWorldRef::<(&i32, &mut f32)>::new(&world);
 
     let mut query = subworld.native_query();
-    query
-        .iter()
-        .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
+    query.par_for_each(8, |(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
     let val = subworld.try_get::<i32>(entity).unwrap();
@@ -75,9 +73,7 @@ fn custom_query() {
     assert_eq!(*val, 42);
 
     let mut query = subworld.query::<Foo>();
-    query
-        .iter()
-        .for_each(|(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
+    query.par_for_each(2, |(e, val)| eprintln!("Entity {:?}: {:?}", e, val));
 
     assert!(subworld.try_query::<(&mut i32, &f32)>().is_err());
     let val = view.get(entity).unwrap();

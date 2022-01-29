@@ -125,4 +125,12 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
     pub fn reserve_entities<'a>(&'a self, count: u32) -> impl Iterator<Item = Entity> + 'a {
         self.world.reserve_entities(count)
     }
+
+    /// Query the subworld.
+    /// # Panics
+    /// Panics if the query items are not a compatible subset of the subworld.
+    pub fn query_par<Q: Query + Subset>(&self) -> QueryBorrow<'_, Q> {
+        self.try_query()
+            .expect("Failed to execute query on subworld")
+    }
 }
