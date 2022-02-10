@@ -1,42 +1,6 @@
-use std::marker::PhantomData;
-
 use hecs::{
     Bundle, CommandBuffer as CommandBufferInternal, Component, DynamicBundle, Entity, World,
 };
-
-/// Trait for deferring modifications to the world.
-pub trait WriteCmd: Component {
-    /// Executes on the world
-    fn execute(&mut self, world: &mut World);
-}
-
-struct RemoveCmd<C: Component> {
-    entity: Entity,
-    marker: PhantomData<C>,
-}
-
-impl<C: Component> RemoveCmd<C> {
-    fn new(entity: Entity) -> Self {
-        Self {
-            entity,
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<C: Component + Bundle> WriteCmd for RemoveCmd<C> {
-    fn execute(&mut self, world: &mut World) {
-        world
-            .remove::<C>(self.entity)
-            .expect("Failed to remove components from entity");
-    }
-}
-
-impl<F: FnMut(&mut World) + Component> WriteCmd for F {
-    fn execute(&mut self, world: &mut World) {
-        (self)(world)
-    }
-}
 
 #[derive(Default)]
 /// Extends the built in [hecs::CommandBuffer].
@@ -49,7 +13,7 @@ pub struct CommandBuffer {
     /// Use the already existing hecs::CommmandBuffer
     components: CommandBufferInternal,
     despawns: Vec<Entity>,
-    writes: Vec<Box<dyn WriteCmd>>,
+    writes: Vec<Box<dyn FnOnce(&mut World) + Send + Sync>>,
 }
 
 impl CommandBuffer {
@@ -81,27 +45,36 @@ impl CommandBuffer {
 
     /// Remove components from entity
     pub fn remove<C: Component + Bundle>(&mut self, entity: Entity) {
-        self.writes.push(Box::new(RemoveCmd::<C>::new(entity)))
+        self.writes.push(Box::new(move |w| {
+            w.remove::<C>(entity).unwrap();
+        }))
     }
 
     /// Remove a single component from the world
     pub fn remove_one<C: Component>(&mut self, entity: Entity) {
-        self.writes.push(Box::new(RemoveCmd::<(C,)>::new(entity)))
+        self.writes.push(Box::new(move |w| {
+            w.remove_one::<C>(entity).unwrap();
+        }))
     }
 
     /// Applies the recorded commands on the world
     pub fn execute(&mut self, world: &mut World) {
         self.components.run_on(world);
 
-        self.writes.drain(..).for_each(|mut cmd| cmd.execute(world));
+        self.writes.drain(..).for_each(|cmd| (cmd)(world));
 
         self.despawns
             .drain(..)
             .for_each(|e| world.despawn(e).expect("Failed to despawn entity"));
     }
 
+    /// Nest a commandbuffer
+    pub fn append(&mut self, mut other: Self) {
+        self.write(move |w| other.execute(w))
+    }
+
     /// Record a custom command modifying the world
-    pub fn write(&mut self, cmd: impl WriteCmd) {
+    pub fn write(&mut self, cmd: impl FnOnce(&mut World) + Component) {
         self.writes.push(Box::new(cmd))
     }
 
@@ -113,8 +86,3 @@ impl CommandBuffer {
     }
 }
 
-impl WriteCmd for CommandBuffer {
-    fn execute(&mut self, world: &mut World) {
-        self.execute(world)
-    }
-}
