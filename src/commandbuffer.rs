@@ -46,14 +46,14 @@ impl CommandBuffer {
     /// Remove components from entity
     pub fn remove<C: Component + Bundle>(&mut self, entity: Entity) {
         self.writes.push(Box::new(move |w| {
-            w.remove::<C>(entity).unwrap();
+            let _ = w.remove::<C>(entity);
         }))
     }
 
     /// Remove a single component from the world
     pub fn remove_one<C: Component>(&mut self, entity: Entity) {
         self.writes.push(Box::new(move |w| {
-            w.remove_one::<C>(entity).unwrap();
+            let _ = w.remove_one::<C>(entity);
         }))
     }
 
