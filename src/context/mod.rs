@@ -70,8 +70,6 @@ impl<With: Component> IntoData<With> for () {
 }
 
 macro_rules! tuple_impl {
-    () => {};
-
     ($([$idx: tt => $name: ident]),*) => {
         impl<$( $name ), *, With> IntoData<With> for ($(&mut $name,) *)
             where

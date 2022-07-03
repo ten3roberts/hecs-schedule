@@ -45,17 +45,21 @@ pub trait QueryExt {
 
 impl<'w, 'q, Q> QueryExt for &'q mut QueryBorrow<'w, Q>
 where
-    Q: Query + Send + Sync,
+    Q: Query,
+    <Q::Fetch as Fetch<'q>>::Item: Send,
 {
-    // type Item = <<Q as Query>::Fetch as Fetch<'q>::Item;
-    // type Item = <<Q as Query>::Fetch as Fetch<'q>>::Item>;
     type Item = <Q::Fetch as Fetch<'q>>::Item;
+
+    /// Execute a function for each item of the query in pararell using rayon.
+    #[cfg(feature = "parallel")]
     fn par_for_each(self, batch_size: u32, func: impl Fn((Entity, Self::Item)) + Send + Sync) {
         self.iter_batched(batch_size)
             .par_bridge()
             .for_each(|batch| batch.for_each(&func))
     }
 
+    /// Fallible version of [`QueryBorrow::par_for_each`]
+    #[cfg(feature = "parallel")]
     fn try_par_for_each<E: Send>(
         self,
         batch_size: u32,
