@@ -4,7 +4,8 @@ use std::{any::type_name, marker::PhantomData, ops::Deref};
 use crate::{access::*, borrow::ComponentBorrow, Error, Result};
 
 use crate::{GenericWorld, QueryOne};
-use hecs::{Component, Entity, Query, QueryBorrow, World};
+use hecs::*;
+// use hecs::{Component, Entity, Query, QueryBorrow, World};
 
 /// Type alias for a subworld referencing the world by an [atomic_refcell::AtomicRef]. Most
 /// common for schedules
@@ -92,7 +93,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        match self.world.get(entity) {
+        match self.world.get::<&C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
@@ -112,7 +113,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        match self.world.get_mut(entity) {
+        match self.world.get::<&mut C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
