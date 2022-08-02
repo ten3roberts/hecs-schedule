@@ -4,8 +4,7 @@ use std::{any::type_name, marker::PhantomData, ops::Deref};
 use crate::{access::*, borrow::ComponentBorrow, Error, Result};
 
 use crate::{GenericWorld, QueryOne};
-use hecs::*;
-// use hecs::{Component, Entity, Query, QueryBorrow, World};
+use hecs::{Component, Entity, Query, QueryBorrow, World};
 
 /// Type alias for a subworld referencing the world by an [atomic_refcell::AtomicRef]. Most
 /// common for schedules
