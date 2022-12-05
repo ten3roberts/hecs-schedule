@@ -91,12 +91,17 @@ let get_system = move | w: SubWorld<&i32> | -> anyhow::Result<()> {
 // schedule and stops execution.
 
 // It is also possible to modify the app via `mut Write<App>`
-let print_app = | app: Read<App> | {
+let print_app = |app: Read<App>| {
     println!("App: {:?}", app);
+};
+
+let spawn_system = |mut cmd: Write<hecs_schedule::CommandBuffer>| {
+    cmd.spawn(("c", 5));
 };
 
 // Construct a schedule
 let mut schedule = Schedule::builder()
+    .add_system(spawn_system)
     .add_system(print_system)
     .add_system(print_app)
     .add_system(get_system)
