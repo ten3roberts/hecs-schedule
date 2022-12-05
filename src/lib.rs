@@ -93,6 +93,8 @@
 //!     println!("App: {:?}", app);
 //! };
 //!
+//! // Note: the `hecs_schedule::CommandBuffer` is a superset of `hecs::CommandBuffer` and is
+//! accesible as a shared resource from systems.
 //! let spawn_system = |mut cmd: Write<hecs_schedule::CommandBuffer>| {
 //!     cmd.spawn(("c", 5));
 //! };
