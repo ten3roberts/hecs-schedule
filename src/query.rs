@@ -1,7 +1,7 @@
 use std::any::type_name;
 
 use crate::{Error, Result};
-use hecs::{Entity, Query, QueryItem};
+use hecs::{Entity, Query};
 
 /// Wraps the bulting QueryOne with a Result containing the entity and component instead of option
 pub struct QueryOne<'a, Q: Query> {
@@ -21,7 +21,7 @@ impl<'a, Q: Query> QueryOne<'a, Q> {
     /// Panics if called more than once or if it would construct a borrow that clashes with another
     /// pre-existing borrow.
     // Note that this uses self's lifetime, not 'a, for soundness.
-    pub fn get(&mut self) -> Result<QueryItem<Q>> {
+    pub fn get(&mut self) -> Result<Q::Item<'_>> {
         match self.query.get() {
             Some(val) => Ok(val),
             None => Err(Error::UnsatisfiedQuery(self.entity, type_name::<Q>())),

@@ -92,7 +92,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        match self.world.get(entity) {
+        match self.world.get::<&C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
@@ -112,7 +112,7 @@ impl<'w, A: 'w + Deref<Target = World>, T: ComponentBorrow> SubWorldRaw<A, T> {
             });
         }
 
-        match self.world.get_mut(entity) {
+        match self.world.get::<&mut C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {

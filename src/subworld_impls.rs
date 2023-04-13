@@ -215,7 +215,7 @@ impl GenericWorld for World {
     }
 
     fn try_get<C: Component>(&self, entity: Entity) -> Result<hecs::Ref<C>> {
-        match self.get(entity) {
+        match self.get::<&C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {
@@ -225,7 +225,7 @@ impl GenericWorld for World {
     }
 
     fn try_get_mut<C: Component>(&self, entity: Entity) -> Result<hecs::RefMut<C>> {
-        match self.get_mut(entity) {
+        match self.get::<&mut C>(entity) {
             Ok(val) => Ok(val),
             Err(hecs::ComponentError::NoSuchEntity) => Err(Error::NoSuchEntity(entity)),
             Err(hecs::ComponentError::MissingComponent(name)) => {

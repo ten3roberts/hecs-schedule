@@ -31,28 +31,28 @@ impl<'a, T> View<'a> for &'a mut T {
 /// Extends the queries for additional paralell operation
 pub trait QueryExt {
     /// Item returned by the query
-    type Item;
+    type Item<'a>;
     /// Execute a function for each item of the query in pararell using rayon.
     #[cfg(feature = "parallel")]
-    fn par_for_each(self, batch_size: u32, func: impl Fn((Entity, Self::Item)) + Send + Sync);
+    fn par_for_each<'a>(self, batch_size: u32, func: impl Fn((Entity, Self::Item<'a>)) + Send + Sync);
     /// Fallible version of [`QueryBorrow::par_for_each`]
     #[cfg(feature = "parallel")]
-    fn try_par_for_each<E: Send>(
+    fn try_par_for_each<'a, E: Send>(
         self,
         batch_size: u32,
-        func: impl Fn((Entity, Self::Item)) -> Result<(), E> + Send + Sync,
+        func: impl Fn((Entity, Self::Item<'a>)) -> Result<(), E> + Send + Sync,
     ) -> Result<(), E>;
 }
 
 impl<'w, 'q, Q> QueryExt for &'q mut QueryBorrow<'w, Q>
 where
     Q: Query,
-    <Q::Fetch as Fetch<'q>>::Item: Send,
+    for <'a> Q::Item<'a>: Send,
 {
-    type Item = <Q::Fetch as Fetch<'q>>::Item;
+    type Item<'a> = Q::Item<'q>;
 
     #[cfg(feature = "parallel")]
-    fn par_for_each(self, batch_size: u32, func: impl Fn((Entity, Self::Item)) + Send + Sync) {
+    fn par_for_each<'a>(self, batch_size: u32, func: impl Fn((Entity, Self::Item<'a>)) + Send + Sync) {
         use rayon::iter::{ParallelBridge, ParallelIterator};
         self.iter_batched(batch_size)
             .par_bridge()
@@ -60,10 +60,10 @@ where
     }
 
     #[cfg(feature = "parallel")]
-    fn try_par_for_each<E: Send>(
+    fn try_par_for_each<'a, E: Send>(
         self,
         batch_size: u32,
-        func: impl Fn((Entity, Self::Item)) -> Result<(), E> + Send + Sync,
+        func: impl Fn((Entity, Self::Item<'a>)) -> Result<(), E> + Send + Sync,
     ) -> Result<(), E> {
         use rayon::iter::{ParallelBridge, ParallelIterator};
         self.iter_batched(batch_size)
