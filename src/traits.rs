@@ -1,6 +1,8 @@
 //! Defines common traits
+use hecs::{Query, QueryBorrow};
 
-use hecs::{Entity, Fetch, Query, QueryBorrow};
+#[cfg(feature = "parallel")]
+use hecs::Entity;
 
 /// Traits for types which represent a view or subset of some other type.
 pub trait View<'a> {

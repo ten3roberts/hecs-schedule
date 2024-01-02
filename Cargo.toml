@@ -1,6 +1,6 @@
 [package]
 name = "hecs-schedule"
-version = "0.6.2"
+version = "0.7.0"
 edition = "2021"
 description = "Provides shedulable systems and parallel execution for hecs"
 readme ="README.md"
@@ -12,12 +12,12 @@ repository = "https://github.com/ten3roberts/hecs-schedule"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.58"
-atomic_refcell = "0.1.8"
-hecs = { version = "0.10.3", features = [ "macros" ] }
-rayon = { version = "1.5.3", optional = true }
-smallvec = "1.9.0"
-thiserror = "1.0.31"
+anyhow = "1.0.78"
+atomic_refcell = "0.1.13"
+hecs = { version = "0.10.4", features = [ "macros" ] }
+rayon = { version = "1.8.0", optional = true }
+smallvec = "1.11.2"
+thiserror = "1.0.53"
 
 [features]
 default = [ "parallel" ]
